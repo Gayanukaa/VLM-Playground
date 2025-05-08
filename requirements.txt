@@ -1,0 +1,8 @@
+transformers
+unsloth
+pillow
+numpy
+pandas
+sentence-transformers
+scikit-learn
+ipykernel
