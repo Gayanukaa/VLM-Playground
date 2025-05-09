@@ -9,3 +9,5 @@ pycocoevalcap
 scikit-learn
 ipykernel
 kaggle
+jupyter
+ipywidgets

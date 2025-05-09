@@ -7,6 +7,9 @@ __pycache__/
 *.so
 
 # Folders and Files
+mypy.ini
+.pre-commit-config.yaml
+.flake8
 experiments/prompt-tuning/data/kaggle.json
 
 # Distribution / packaging

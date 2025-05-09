@@ -11,6 +11,7 @@ import pandas as pd
 print("🔄 Loading vision-language model...")
 model, tokenizer = FastVisionModel.from_pretrained(
     "unsloth/Qwen2.5-VL-7B-Instruct-bnb-4bit",
+    #unsloth/Pixtral-12B-2409-bnb-4bit
     load_in_4bit=True,  # Use 4bit to reduce memory use. False for 16bit LoRA.
     use_gradient_checkpointing="unsloth",  # True or "unsloth" for long context
 )
