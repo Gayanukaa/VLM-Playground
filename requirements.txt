@@ -11,3 +11,5 @@ ipykernel
 kaggle
 jupyter
 ipywidgets
+nltk
+spice_metric
