@@ -4,6 +4,7 @@ pip install --upgrade pip
 
 python -m venv venv
 source venv/bin/activate
+echo "✅ venv activated."
 
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -30,7 +31,7 @@ git clone https://github.com/salaniz/pycocoevalcap.git
 cd pycocoevalcap
 pip install .
 
-mkdir -p spice-1.0
-cd spice-1.0
-wget http://nlp.stanford.edu/software/stanford-corenlp-3.6.0.zip
-unzip stanford-corenlp-3.6.0.zip
+# mkdir -p spice-1.0
+# cd spice-1.0
+# wget http://nlp.stanford.edu/software/stanford-corenlp-3.6.0.zip
+# unzip stanford-corenlp-3.6.0.zip

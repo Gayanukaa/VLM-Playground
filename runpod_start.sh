@@ -9,6 +9,8 @@ python -m venv venv
 # Activate virtual environment
 source venv/bin/activate
 
+echo "✅ venv activated."
+
 # Upgrade pip again inside venv
 python -m pip install --upgrade pip
 
@@ -32,5 +34,7 @@ git pull
 
 # Install dependencies
 pip install -r requirements.txt
+
+python -m ipykernel install --user --name=venv --display-name "Python (venv)"
 
 echo "✅ Environment setup complete."
