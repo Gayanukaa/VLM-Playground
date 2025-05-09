@@ -8,7 +8,6 @@ from pycocoevalcap.spice.spice   import Spice
 from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
 import pandas as pd
 
-# --- Load model ---
 print("🔄 Loading vision-language model...")
 model, tokenizer = FastVisionModel.from_pretrained(
     "unsloth/Qwen2.5-VL-7B-Instruct-bnb-4bit",
@@ -18,7 +17,6 @@ model, tokenizer = FastVisionModel.from_pretrained(
 model.eval()
 print("✅ Model loaded successfully.")
 
-# --- Load scorer ---
 print("🔄 Loading sentence transformer for scoring...")
 scorer = SentenceTransformer("all-MiniLM-L6-v2").to("cuda")
 print("✅ Sentence transformer loaded.")
@@ -36,7 +34,7 @@ def get_similarity_score(reference_captions, generated_caption):
 
         avg_score = total_score / len(reference_captions) if reference_captions else 0.0
         return avg_score
-        
+
     except Exception as e:
         return 0.0
 
@@ -52,13 +50,13 @@ def score_per_image(refs, hypos):
         (Cider(),  "CIDEr"),
         (Spice(),  "SPICE")
     ]
-    
+
     ptb = PTBTokenizer()
     refs_wrapped  = {i:[{"caption":c} for c in caps] for i, caps in refs.items()}
     hypos_wrapped = {i:[{"caption":hypos[i][0]}]  for i in hypos}
     refs_tok  = ptb.tokenize(refs_wrapped)
     hypos_tok = ptb.tokenize(hypos_wrapped)
-    
+
     all_scores = {}
     for scorer, name in scorers:
         avg_score, per_image_scores = scorer.compute_score(refs_tok, hypos_tok)
@@ -73,7 +71,7 @@ def score_per_image(refs, hypos):
             else:
                 # METEOR and CIDEr return floats per image
                 all_scores[img_id][name] = per_image_scores[idx]
-    
+
     return all_scores
 
 def run_inference(image, model, tokenizer, instruction):
@@ -158,7 +156,7 @@ def evaluate_sample(prompts, sample, multiple_refs):
         }
         print(f"✅ Result for instruction {i+1}: {res}")
         results.append(res)
-    
+
     return results
 
 
@@ -170,7 +168,7 @@ def evaluate_batch(prompts_list, val_data, indexes, multiple_refs=True):
     """
     print("🚀 Starting batch evaluation...")
     all_results = []
-    
+
     for i, (index, prompts) in enumerate(zip(indexes, prompts_list)):
         print(f"\n📦 Evaluating sample {i+1}/{len(indexes)} at index {index}...")
         results = evaluate_sample(prompts, val_data[index],multiple_refs)

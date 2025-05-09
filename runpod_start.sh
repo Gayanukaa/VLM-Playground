@@ -16,7 +16,7 @@ python -m pip install --upgrade pip
 git clone https://github.com/Gayanukaa/VLM-Playground.git
 
 # Move into the backend directory
-cd VLM-Playground/experiments
+cd VLM-Playground
 
 # List all branches
 git branch -a
@@ -31,20 +31,6 @@ git fetch
 git pull
 
 # Install dependencies
-pip install -r requirements_with_versions.txt
+pip install -r requirements.txt
 
 echo "✅ Environment setup complete."
-
-# Ask if user wants to start the backend
-read -p "🚀 Do you want to start the backend server now? (Y/N): " run_backend
-
-# Convert to uppercase just in case
-run_backend=${run_backend^^}
-
-if [ "$run_backend" = "Y" ]; then
-    echo "🎯 Starting backend server..."
-    cd jac-vision/s
-    uvicorn main:app --host 0.0.0.0 --port 4000
-else
-    echo "❌ Backend server not started. Setup finished."
-fi
