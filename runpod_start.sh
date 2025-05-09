@@ -43,7 +43,7 @@ run_backend=${run_backend^^}
 
 if [ "$run_backend" = "Y" ]; then
     echo "🎯 Starting backend server..."
-    cd jac-vision/src/backend/
+    cd jac-vision/s
     uvicorn main:app --host 0.0.0.0 --port 4000
 else
     echo "❌ Backend server not started. Setup finished."

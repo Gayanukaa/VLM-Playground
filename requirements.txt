@@ -1,8 +1,11 @@
-transformers
-unsloth
+torch>=2.0.0
+transformers>=4.36.0
+unsloth>=0.1.7
 pillow
 numpy
 pandas
-sentence-transformers
+sentence-transformers>=2.2.2
+pycocoevalcap
 scikit-learn
 ipykernel
+kaggle
