@@ -9,8 +9,6 @@ import numpy as np
 import math
 import os
 
-PICKLE_PATH = "/workspace/data/cardd-df.p"
-
 def precook(s, n=4, out=False):
     words = s.split()
     counts = defaultdict(int)
@@ -75,6 +73,8 @@ class CiderScorer(object):
             for (ngram, term_freq) in cnts.items():
                 df = np.log(max(1.0, self.document_frequency.get(ngram, 0.0)))
                 n = len(ngram) - 1
+                if n >= self.n:
+                    continue
                 vec[n][ngram] = float(term_freq) * (self.ref_len - df)
                 norm[n] += pow(vec[n][ngram], 2)
                 if n == 1:
@@ -118,7 +118,7 @@ class Cider:
     Main Class to compute the CIDEr metric
 
     """
-    def __init__(self, n=4, df="coco-val-df"):
+    def __init__(self, n=1, df="coco-val-df"):
         """
         Initialize the CIDEr scoring function
         : param n (int): n-gram size
