@@ -13,3 +13,4 @@ jupyter
 ipywidgets
 nltk
 openpyxl
+aac-metrics
