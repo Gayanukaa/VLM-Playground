@@ -12,3 +12,4 @@ kaggle
 jupyter
 ipywidgets
 nltk
+openpyxl
