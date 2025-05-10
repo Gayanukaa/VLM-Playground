@@ -13,6 +13,7 @@ mypy.ini
 experiments/prompt-tuning/data/kaggle.json
 experiments/prompt-tuning/data/test_dataset
 experiments/prompt-tuning/data/test_set.json
+experiments/prompt-tuning/results/
 
 # Distribution / packaging
 .Python
