@@ -5,6 +5,7 @@ pillow
 numpy
 pandas
 sentence-transformers>=2.2.2
+pycocoevalcap
 scikit-learn
 ipykernel
 kaggle
@@ -12,4 +13,3 @@ jupyter
 ipywidgets
 nltk
 openpyxl
-
