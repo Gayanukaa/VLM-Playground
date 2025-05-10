@@ -9,6 +9,8 @@ import numpy as np
 import math
 import os
 
+PICKLE_PATH = "/workspace/data/cardd-df.p"
+
 def precook(s, n=4, out=False):
     words = s.split()
     counts = defaultdict(int)
@@ -65,7 +67,7 @@ class CiderScorer(object):
             for ngram in set([ngram for ref in refs for (ngram, _) in ref.items()]):
                 self.document_frequency[ngram] += 1
 
-    def compute_cider(self, pfile_path):
+    def compute_cider(self):
         def counts2vec(cnts):
             vec = [defaultdict(float) for _ in range(self.n)]
             length = 0
@@ -105,10 +107,10 @@ class CiderScorer(object):
             scores.append(score_avg)
         return scores
 
-    def compute_score(self, df_mode, pfile_path):
+    def compute_score(self, df_mode, pfile_path, option=None, verbose=0):
         with open(pfile_path, 'rb') as f:
             self.document_frequency = pickle.load(f)
-        score = self.compute_cider(df_mode, pfile_path)
+        score = self.compute_cider()
         return np.mean(np.array(score)), np.array(score)
 
 class Cider:
@@ -150,9 +152,10 @@ class Cider:
             assert(len(ref) > 0)
             cider_scorer += (hypo[0], ref)
 
-        (score, scores) = cider_scorer.compute_score(self._df, pfile_path)
+        (score, scores) = cider_scorer.compute_score(self._df, pfile_path= pfile_path)
 
         return score, scores
 
     def method(self):
         return "CIDEr"
+    
