@@ -1,10 +1,10 @@
-torch>=2.0.0
-transformers>=4.36.0
-unsloth>=0.1.7
+transformers
+unsloth
+accelerate
 pillow
 numpy
 pandas
-sentence-transformers>=2.2.2
+sentence-transformers
 scikit-learn
 ipykernel
 kaggle
@@ -12,4 +12,3 @@ jupyter
 ipywidgets
 nltk
 openpyxl
-
