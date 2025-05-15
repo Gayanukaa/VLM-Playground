@@ -10,7 +10,6 @@ pip install --upgrade pip
 pip install -r requirements.txt
 jupyter nbextension enable --py widgetsnbextension
 
-
 python -m ipykernel install --user --name=venv --display-name "Python (venv)"
 
 # add kaggle.json to ~/.kaggle directory
