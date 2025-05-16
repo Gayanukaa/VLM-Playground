@@ -6,7 +6,7 @@ This folder contains evaluation scripts and Jupyter notebooks for testing and co
 
 ### `cardd_pixtral.ipynb`
 
-Notebook to evaluate image captioning outputs from the **Pixtral VLM** on the CAR Damage Dataset (CARDD). 
+Notebook to evaluate image captioning outputs from the **Pixtral VLM** on the CAR Damage Dataset (CARDD).
 
 - Loads CARDD images and prompts Pixtral for caption generation.
 - Logs outputs, inference time, and GPU usage.
@@ -15,23 +15,22 @@ Notebook to evaluate image captioning outputs from the **Pixtral VLM** on the CA
 
 ### `cardd_qwen.ipynb`
 
-Similar to `cardd_pixtral.ipynb`, but uses the **Qwen-VL** model for inference on the CARDD dataset. 
+Similar to `cardd_pixtral.ipynb`, but uses the **Qwen-VL** model for inference on the CARDD dataset.
 
 - Follows the same workflow for prompt-based captioning and metric evaluation.
 
 ### `flickr30k_pixtral.ipynb`
 
-Runs the **Pixtral VLM** on the Flickr30k dataset using similar structured prompting and evaluation. 
+Runs the **Pixtral VLM** on the Flickr30k dataset using similar structured prompting and evaluation.
 
 - Useful for comparing model performance on a more general-purpose image-caption dataset.
 - Designed to replicate the CARDD evaluation flow but with different image and caption sources.
 
 ### `flickr30k_qwen.ipynb`
 
-Captioning and evaluation of Flickr30k images using the **Qwen-VL** model. 
+Captioning and evaluation of Flickr30k images using the **Qwen-VL** model.
 
 - Follows the same pipeline as `flickr30k_pixtral.ipynb` but replaces the model for side-by-side comparisons.
-
 
 ## ⚙️ How to Run the Notebooks
 
