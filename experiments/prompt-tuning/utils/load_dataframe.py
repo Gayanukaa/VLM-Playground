@@ -1,13 +1,12 @@
-import os
-import json
 import argparse
+import json
+import os
 
-from PIL import Image
 import numpy as np
 import pandas as pd
-
-from unsloth import FastVisionModel # FastLanguageModel for LLMs
 import torch
+from PIL import Image
+
 
 def create_image_caption_dataset(
     image_folder: str,
@@ -27,7 +26,7 @@ def create_image_caption_dataset(
         A pandas DataFrame with two columns: image (NumPy array) and caption (string)
     """
     image_size = (224, 224)
-    
+
     with open(captions_json, "r", encoding="utf-8") as f:
         caption_data = json.load(f)  # No "root" key — top-level mapping
 
@@ -46,7 +45,7 @@ def create_image_caption_dataset(
         try:
             img = Image.open(image_path).convert("RGB")
             img = img.resize(image_size, Image.LANCZOS)
-            
+
         except Exception as e:
             print(f"❌ Failed to load '{fname}': {e}")
             continue
@@ -63,11 +62,11 @@ def create_image_caption_dataset(
 # def main():
 #     image_folder = "/kaggle/input/car-caption-dataset/Captioned_Data/filtered_images"
 #     captions_json = "/kaggle/input/car-caption-dataset/Captioned_Data/merged_output.json"
-    
+
 #     df = create_image_caption_dataset(image_folder, captions_json)
-    
+
 #     print(df.head())
-    
+
 #     output_csv = "/kaggle/working/image_caption_data.csv"
 #     df[['image', 'caption']].to_csv(output_csv, index=False)
 #     print(f"Saved to {output_csv}")

@@ -6,6 +6,16 @@ __pycache__/
 # C extensions
 *.so
 
+# Folders and Files
+mypy.ini
+.pre-commit-config.yaml
+.flake8
+experiments/prompt-tuning/data/kaggle.json
+experiments/prompt-tuning/data/test_dataset
+experiments/prompt-tuning/data/test_set.json
+experiments/prompt-tuning/results/
+experiments/prompt-tuning/data/filtered_dataset
+
 # Distribution / packaging
 .Python
 build/
