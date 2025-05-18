@@ -75,9 +75,15 @@ lemmatizer = WordNetLemmatizer()
 
 def get_wordnet_pos_for_lemmatizer(word):
     """Map POS tag to first character lemmatizer() accepts for better lemmatization."""
-    tag = nltk.pos_tag([word])[0][1][0].upper()
-    tag_dict = {"J": wn.ADJ, "N": wn.NOUN, "V": wn.VERB, "R": wn.ADV}
-    return tag_dict.get(tag, wn.NOUN) # Default to noun if tag not found
+    # Use a simple mapping for common word endings
+    if word.endswith('ed') or word.endswith('ing'):
+        return wn.VERB
+    elif word.endswith('ly'):
+        return wn.ADV
+    elif word.endswith('al') or word.endswith('ful') or word.endswith('ous'):
+        return wn.ADJ
+    else:
+        return wn.NOUN  # Default to noun for simplicity
 
 def get_synonyms_for_word(word):
     """Get a set of synonyms for a word using WordNet, including its lemmatized form."""
@@ -174,23 +180,66 @@ def run_mock_spice_evaluation(input_data_list):
     return mock_results
 
 # --- (3) Simplified Scene Graph Tuple Extractor & Visualizer ---
+def get_pos_tag(word):
+    """Enhanced rule-based POS tagger with more comprehensive rules."""
+    word = word.lower()
+
+    # Common verbs
+    common_verbs = {'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had',
+                   'do', 'does', 'did', 'run', 'runs', 'running', 'ran', 'sprint',
+                   'sprints', 'sprinting', 'sprinted', 'move', 'moves', 'moving',
+                   'moved', 'walk', 'walks', 'walking', 'walked'}
+
+    # Common adjectives
+    common_adjectives = {'big', 'small', 'large', 'tiny', 'dark', 'light', 'bright',
+                        'green', 'blue', 'red', 'yellow', 'brown', 'black', 'white',
+                        'grassy', 'beautiful', 'ugly', 'happy', 'sad', 'quick', 'slow'}
+
+    # Common adverbs
+    common_adverbs = {'quickly', 'slowly', 'happily', 'sadly', 'very', 'really',
+                     'quite', 'rather', 'too', 'so', 'well', 'badly'}
+
+    # Check common words first
+    if word in common_verbs:
+        return 'VB'
+    elif word in common_adjectives:
+        return 'JJ'
+    elif word in common_adverbs:
+        return 'RB'
+
+    # Check word endings
+    if word.endswith(('ed', 'ing', 'ize', 'ise', 'ify', 'ate')):
+        return 'VB'
+    elif word.endswith('ly'):
+        return 'RB'
+    elif word.endswith(('al', 'ful', 'ous', 'ive', 'able', 'ible', 'ic', 'ical', 'y')):
+        return 'JJ'
+    elif word.endswith(('s', 'es')):
+        return 'NNS'
+    elif word.endswith(('tion', 'sion', 'ment', 'ness', 'ity', 'ance', 'ence')):
+        return 'NN'
+    else:
+        return 'NN'  # Default to noun
+
 def simple_tuple_extractor(caption):
     """
-    VERY simplified rule-based tuple extractor for demonstration.
+    Enhanced rule-based tuple extractor for demonstration.
     This is not a robust scene graph parser like SPICE uses.
     """
     tuples = []
     sentences = sent_tokenize(caption)
     for sentence in sentences:
         tokens = word_tokenize(sentence)
-        tagged_tokens = nltk.pos_tag(tokens)
+        tagged_tokens = [(token, get_pos_tag(token)) for token in tokens]
 
+        # Extract adjective-noun pairs
         for i in range(len(tagged_tokens) - 1):
             if tagged_tokens[i][1].startswith('NN') and tagged_tokens[i+1][1].startswith('JJ'):
                 tuples.append((tagged_tokens[i][0], tagged_tokens[i+1][0]))
             elif tagged_tokens[i][1].startswith('JJ') and tagged_tokens[i+1][1].startswith('NN'):
-                 tuples.append((tagged_tokens[i+1][0], tagged_tokens[i][0]))
+                tuples.append((tagged_tokens[i+1][0], tagged_tokens[i][0]))
 
+        # Extract subject-verb-object patterns
         nouns = [token for token, pos in tagged_tokens if pos.startswith('NN')]
         verbs = [token for token, pos in tagged_tokens if pos.startswith('VB')]
 
@@ -201,8 +250,15 @@ def simple_tuple_extractor(caption):
                 object_ = nouns[1]
                 tuples.append((subject, verb_phrase, object_))
             else:
-                 tuples.append((subject, verb_phrase))
+                tuples.append((subject, verb_phrase))
 
+        # Extract prepositional phrases
+        for i in range(len(tagged_tokens) - 2):
+            if tagged_tokens[i][1].startswith('NN') and tagged_tokens[i+1][0].lower() in {'in', 'on', 'at', 'through', 'over', 'under'}:
+                if tagged_tokens[i+2][1].startswith('NN'):
+                    tuples.append((tagged_tokens[i][0], tagged_tokens[i+1][0], tagged_tokens[i+2][0]))
+
+    # Remove duplicates while preserving order
     seen_tuples = set()
     unique_tuples_final = []
     for tpl in tuples:
@@ -213,7 +269,6 @@ def simple_tuple_extractor(caption):
     return unique_tuples_final
 
 
-@st.cache_data(show_spinner=False)
 def get_scene_graph_figure(tuples, caption_name="Scene Graph"):
     """Generates a Matplotlib figure visualizing the scene graph tuples."""
     graph = nx.MultiDiGraph()
@@ -373,5 +428,5 @@ else:
     st.info("Enter captions in the sidebar and click 'Evaluate Captions' to see the results.")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("Developed by an AI Assistant.")
+st.sidebar.markdown("Developed by [Gayanukaa](https://gayanukaa.github.io)")
 st.sidebar.markdown(f"Streamlit Version: {st.__version__}, NLTK Version: {nltk.__version__}")
