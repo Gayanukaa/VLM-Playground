@@ -118,7 +118,7 @@ class Cider:
     Main Class to compute the CIDEr metric
 
     """
-    def __init__(self, n=1, df="coco-val-df"):
+    def __init__(self, n=4, df="coco-val-df"):
         """
         Initialize the CIDEr scoring function
         : param n (int): n-gram size
@@ -158,4 +158,3 @@ class Cider:
 
     def method(self):
         return "CIDEr"
-    
