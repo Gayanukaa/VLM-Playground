@@ -1,7 +1,0 @@
-[
-  {
-    "image_id": 1,
-    "test": "A dog is running in the park.",
-    "refs": ["A dog runs outside.", "A canine is playing in the field."]
-  }
-]

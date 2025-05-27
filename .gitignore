@@ -17,6 +17,7 @@ experiments/prompt-tuning/results/
 experiments/prompt-tuning/data/filtered_dataset
 experiments/spice/SPICE-1.0
 experiments/spice/SPICE
+experiments/spice/spice_cache
 
 # Distribution / packaging
 .Python

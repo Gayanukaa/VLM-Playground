@@ -1,3 +1,5 @@
 streamlit>=1.18
 nltk>=3.8
 pycocoevalcap @ git+https://github.com/salaniz/pycocoevalcap.git@master
+networkx
+matplotlib
