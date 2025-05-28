@@ -14,11 +14,17 @@ st.title("🎯 SPICE Scene-Graph Interactive Visualizer")
 st.sidebar.header("Caption Inputs")
 candidate = st.sidebar.text_area(
     "Candidate Caption",
-    "A dog is running in the park."
+    "a herd of giraffe standing next to each other"
 )
 refs_text = st.sidebar.text_area(
     "Reference Captions (one per line)",
-    "A dog runs outside.\nA canine is playing in the field."
+    "\n".join([
+        "a couple of giraffes that are walking around",
+        "a herd of giraffe standing on top of a dirt field.",
+        "Several smaller giraffes that are in an enclosure.",
+        "The giraffes are walking in different directions outside.",
+        "A giraffe standing next to three baby giraffes in a zoo exhibit."
+    ])
 )
 
 if st.sidebar.button("Evaluate"):
@@ -61,21 +67,29 @@ if st.sidebar.button("Evaluate"):
             bgcolor="#ffffff", font_color="black",
             directed=True
         )
-        net.barnes_hut()  # nice force layout
+        net.barnes_hut(
+            gravity=-8000,
+            central_gravity=0.5,
+            spring_length=80,     # reduce branch length
+            spring_strength=0.1,
+            damping=0.4,
+            overlap=0.2,
+        )
 
         # add nodes & edges
         for tpl in tuples:
             if len(tpl) == 1:
-                net.add_node(tpl[0], label=tpl[0], color=node_color)
+                net.add_node(tpl[0], label=tpl[0], color=node_color, size=20)
             else:
                 # for (subj, rel, obj) or (obj, attr)
                 for src, dst in zip(tpl, tpl[1:]):
                     # ensure nodes exist
-                    net.add_node(src, label=src, color=node_color)
-                    net.add_node(dst, label=dst, color=node_color)
-                    net.add_edge(src, dst, label=str(tpl[1]), color=edge_color, arrows="to")
+                    net.add_node(src, label=src, color=node_color, size=20, borderWidth=2)
+                    net.add_node(dst, label=dst, color=node_color, size=20, borderWidth=2)
+                    net.add_edge(src, dst, color=edge_color, arrows="to", smooth={"type":"curvedCCW","roundness":0.15})
 
         # write out & return HTML
+        # net.show_buttons(filter_=['nodes', 'edges'])
         out_path = os.path.join(evaluator.cache_dir, filename)
         net.save_graph(out_path)
         with open(out_path, "r", encoding="utf-8") as f:
