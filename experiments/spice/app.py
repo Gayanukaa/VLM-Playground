@@ -1,4 +1,5 @@
-import os
+# app.py
+
 import streamlit as st
 import streamlit.components.v1 as components
 from evaluator import SpiceEvaluator
@@ -12,7 +13,7 @@ st.markdown("""
 This dashboard provides an interactive way to evaluate image captions through:
 
 - **SPICE Evaluation**: Invokes the SPICE-1.0 Java jar to compute official precision, recall, and F₁.
-- **Interactive Scene Graphs**: Visualizes the extracted (object–relation–object and object–attribute) tuples as force-directed graphs.
+- **Interactive Scene Graphs**: Visualizes the extracted tuples as force-directed graphs.
 """)
 
 # ─── Sidebar Inputs ─────────────────────────────────────────────────────────────
@@ -44,28 +45,38 @@ if not refs:
     st.sidebar.error("Please enter at least one reference caption.")
     st.stop()
 
-# Run SPICE evaluation
+# ─── Live Logging Expander ───────────────────────────────────────────────────────
+log_expander = st.expander("🖥️ Logs", expanded=True)
+log_box = log_expander.empty()
+logs = []
+
+def log_fn(msg: str):
+    """Append a log message and re-render inside the expander."""
+    logs.append(msg)
+    # show in a code block (grey background + scrollable)
+    log_box.code("\n".join(logs), language="")
+
+# ─── Run SPICE with logging ─────────────────────────────────────────────────────
 evaluator = SpiceEvaluator()
-out = evaluator.evaluate(candidate, refs)
+out = evaluator.evaluate(candidate, refs, log_fn=log_fn)
 
 # ─── Evaluation Results ─────────────────────────────────────────────────────────
 st.subheader("📊 Evaluation Results")
 c1, c2, c3 = st.columns(3)
-c1.metric("Precision", f"{out['precision']:.3f}")
-c2.metric("Recall",    f"{out['recall']:.3f}")
+c1.metric("Precision", f"{out['spice_precision']:.3f}")
+c2.metric("Recall",    f"{out['spice_recall']:.3f}")
 c3.metric("F₁-Score",  f"{out['spice_f1']:.3f}")
 
-# ─── Extracted Tuples (Simplified) ──────────────────────────────────────────────
-st.subheader("🔖 Extracted Tuples (Simplified)")
+# ─── Extracted Tuples (Candidate) ───────────────────────────────────────────────
+st.subheader("🔖 Extracted Tuples (Candidate)")
 cand_tup_str = "[" + ", ".join(str(tuple(t)) for t in out['test_tuples']) + "]"
 st.code(cand_tup_str, language="python")
 
-# ─── Reference Tuples (Simplified) ──────────────────────────────────────────────
-st.subheader("🔖 Reference Tuples (Simplified)")
+# ─── Extracted Tuples (References) ──────────────────────────────────────────────
+st.subheader("🔖 Extracted Tuples (References)")
 for i, ref in enumerate(refs, start=1):
-    # extract tuples for this single reference
-    ref_out = evaluator.evaluate(ref, [ref])
-    ref_tup_str = "[" + ", ".join(str(tuple(t)) for t in ref_out['test_tuples']) + "]"
+    # We already parsed ref_tuples in `out`
+    ref_tup_str = "[" + ", ".join(str(tuple(t)) for t in out['ref_tuples']) + "]"
     st.markdown(f"**Reference {i}:** “{ref}”")
     st.code(ref_tup_str, language="python")
 
