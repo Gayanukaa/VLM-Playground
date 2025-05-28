@@ -1,5 +1,7 @@
 import os
+
 from pyvis.network import Network
+
 
 def make_pyvis(tuples, node_color, edge_color, filename, title):
     """
@@ -7,14 +9,16 @@ def make_pyvis(tuples, node_color, edge_color, filename, title):
     Exactly the same parameters as before.
     """
     # write into ./spice_cache
-    cache_dir = os.path.join(os.getcwd(), 'spice_cache')
+    cache_dir = os.path.join(os.getcwd(), "spice_cache")
     os.makedirs(cache_dir, exist_ok=True)
 
     net = Network(
-        height="500px", width="100%",
-        bgcolor="#ffffff", font_color="black",
+        height="500px",
+        width="100%",
+        bgcolor="#ffffff",
+        font_color="black",
         directed=True,
-        cdn_resources='remote'
+        cdn_resources="remote",
     )
     # tighter/shorter branches
     net.barnes_hut(
@@ -33,7 +37,7 @@ def make_pyvis(tuples, node_color, edge_color, filename, title):
                 tpl[0],
                 label=tpl[0],
                 color={"border": "black", "background": node_color},
-                size=20
+                size=20,
             )
         else:
             for src, dst in zip(tpl, tpl[1:]):
@@ -41,19 +45,20 @@ def make_pyvis(tuples, node_color, edge_color, filename, title):
                     src,
                     label=src,
                     color={"border": "black", "background": node_color},
-                    size=20
+                    size=20,
                 )
                 net.add_node(
                     dst,
                     label=dst,
                     color={"border": "black", "background": node_color},
-                    size=20
+                    size=20,
                 )
                 net.add_edge(
-                    src, dst,
+                    src,
+                    dst,
                     color=edge_color,
                     arrows="to",
-                    smooth={"type":"curvedCCW", "roundness":0.15}
+                    smooth={"type": "curvedCCW", "roundness": 0.15},
                 )
 
     # net.show_buttons(filter_=['physics'])
