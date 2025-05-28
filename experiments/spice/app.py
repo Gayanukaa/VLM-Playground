@@ -79,17 +79,17 @@ if st.sidebar.button("Evaluate"):
         # add nodes & edges
         for tpl in tuples:
             if len(tpl) == 1:
-                net.add_node(tpl[0], label=tpl[0], color=node_color, size=20)
+                net.add_node(tpl[0], label=tpl[0], color={"border": "black","background": node_color}, size=20)
             else:
                 # for (subj, rel, obj) or (obj, attr)
                 for src, dst in zip(tpl, tpl[1:]):
                     # ensure nodes exist
-                    net.add_node(src, label=src, color=node_color, size=20, borderWidth=2)
-                    net.add_node(dst, label=dst, color=node_color, size=20, borderWidth=2)
+                    net.add_node(src, label=src, color={"border": "black","background": node_color}, size=20, borderWidth=2)
+                    net.add_node(dst, label=dst, color={"border": "black","background": node_color}, size=20, borderWidth=2)
                     net.add_edge(src, dst, color=edge_color, arrows="to", smooth={"type":"curvedCCW","roundness":0.15})
 
         # write out & return HTML
-        # net.show_buttons(filter_=['nodes', 'edges'])
+        # net.show_buttons()
         out_path = os.path.join(evaluator.cache_dir, filename)
         net.save_graph(out_path)
         with open(out_path, "r", encoding="utf-8") as f:
@@ -127,3 +127,4 @@ if st.sidebar.button("Evaluate"):
 
 else:
     st.info("Enter captions in the sidebar and click **Evaluate**.")
+
