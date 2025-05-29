@@ -106,7 +106,6 @@ with ref_exp:
         st.markdown(f"**Reference {i}:** “{ref}”")
         st.code(ref_tup_str, language="python")
 
-# ─── Interactive Scene-Graphs ──────────────────────────────────────────────────
 st.subheader("🌳 Interactive Scene-Graphs")
 g1, g2 = st.columns(2)
 

@@ -5,7 +5,6 @@ import subprocess
 from nltk import download as nltk_download
 from nltk.corpus import wordnet
 
-# Ensure WordNet is available
 nltk_download("wordnet", quiet=True)
 nltk_download("omw-1.4", quiet=True)
 

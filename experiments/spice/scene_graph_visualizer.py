@@ -20,7 +20,6 @@ def make_pyvis(tuples, node_color, edge_color, filename, title):
         directed=True,
         cdn_resources="remote",
     )
-    # tighter/shorter branches
     net.barnes_hut(
         gravity=-8000,
         central_gravity=0.5,
