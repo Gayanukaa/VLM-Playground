@@ -54,10 +54,11 @@ logs = []
 def log_fn(msg: str):
     logs.append(msg)
     log_container.text_area(
-        label="",
+        label="Logs",                 # non-empty label
         value="\n".join(logs),
         height=200,
-        disabled=True
+        disabled=True,
+        label_visibility="collapsed"  # hide it from view
     )
 
 # ─── Run SPICE with logging ─────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ out = evaluator.evaluate(candidate, refs, log_fn=log_fn)
 
 # ─── Evaluation Results ─────────────────────────────────────────────────────────
 st.subheader("📊 Evaluation Results")
-c1, c2, c3 = st.columns(3)
+c3, c1, c2 = st.columns(3)
 c1.metric("Precision", f"{out['spice_precision']:.3f}")
 c2.metric("Recall",    f"{out['spice_recall']:.3f}")
 c3.metric("F₁-Score",  f"{out['spice_f1']:.3f}")
