@@ -4,13 +4,13 @@ An interactive Streamlit application that combines the official SPICE metric wit
 
 ## 🚀 Features
 
-- **SPICE Evaluation**  
+- **SPICE Evaluation**
   Invokes the SPICE-1.0 Java JAR in “detailed” mode to compute the official SPICE metric (precision, recall, F₁).
-- **Live Logging**  
+- **Live Logging**
   Streams the SPICE subprocess stdout/stderr into a collapsible, scrollable terminal box in the UI.
-- **Interactive Scene-Graph Visualization**  
+- **Interactive Scene-Graph Visualization**
   Extracts simple tuples from captions and renders them with PyVis: draggable nodes, curved edges, physics controls.
-- **Extracted Tuple Preview**  
+- **Extracted Tuple Preview**
   View simplified lists of extracted tuples (candidate & references) in collapsible code blocks.
 
 ## 📦 Repository Structure
@@ -107,7 +107,6 @@ java -Xmx8G \
 
 This produces detailed SPICE output (`stdout` and a JSON file).
 
-
 ## 🐛 Troubleshooting
 
 - **SPICE JAR not found**
@@ -130,7 +129,6 @@ This produces detailed SPICE output (`stdout` and a JSON file).
 
 - **PyVis graphs not rendering**
   Ensure your network allows CDN loading, or switch `cdn_resources='local'` / `remote` in `scene_graph_visualizer.py`.
-
 
 ## 🤝 Contributing
 
