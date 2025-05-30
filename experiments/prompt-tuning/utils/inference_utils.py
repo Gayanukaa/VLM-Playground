@@ -1,8 +1,8 @@
 from unsloth import FastVisionModel
 import threading
+
 from sentence_transformers import SentenceTransformer, util
 from transformers import TextIteratorStreamer
-
 
 print("🔄 Loading vision-language model...")
 model, tokenizer = FastVisionModel.from_pretrained(
@@ -18,8 +18,11 @@ print("🔄 Loading sentence transformer for scoring...")
 scorer = SentenceTransformer("all-MiniLM-L6-v2").to("cuda")
 print("✅ Sentence transformer loaded.")
 
+
 def get_similarity_score(reference_caption, generated_caption):
-    print(f"📏 Scoring similarity between:\n - Reference: {reference_caption}\n - Generated: {generated_caption}")
+    print(
+        f"📏 Scoring similarity between:\n - Reference: {reference_caption}\n - Generated: {generated_caption}"
+    )
     try:
         ref_embed = scorer.encode(reference_caption, convert_to_tensor=True)
         gen_embed = scorer.encode(generated_caption, convert_to_tensor=True)
@@ -30,23 +33,28 @@ def get_similarity_score(reference_caption, generated_caption):
         print(f"❌ Error during similarity scoring: {e}")
         return 0.0
 
+
 def run_inference(image, model, tokenizer, instruction):
     print(f"🧠 Running inference with instruction: {instruction}")
     try:
         messages = [
-            {"role": "user", "content": [
-                {"type": "image"},
-                {"type": "text", "text": instruction}
-            ]}
+            {
+                "role": "user",
+                "content": [{"type": "image"}, {"type": "text", "text": instruction}],
+            }
         ]
 
         input_text = tokenizer.apply_chat_template(messages, add_generation_prompt=True)
         print(f"📝 Tokenized prompt: {input_text[:100]}...")  # show a short preview
 
-        inputs = tokenizer(image, input_text, add_special_tokens=False, return_tensors="pt").to("cuda")
+        inputs = tokenizer(
+            image, input_text, add_special_tokens=False, return_tensors="pt"
+        ).to("cuda")
         inputs.pop("token_type_ids", None)  # Pixtral models don’t need this
 
-        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        streamer = TextIteratorStreamer(
+            tokenizer, skip_prompt=True, skip_special_tokens=True
+        )
         generated_caption = ""
 
         print("🚀 Starting generation thread...")
@@ -58,8 +66,8 @@ def run_inference(image, model, tokenizer, instruction):
                 "max_new_tokens": 64,
                 "use_cache": True,
                 "temperature": 1.0,
-                "min_p": 0.1
-            }
+                "min_p": 0.1,
+            },
         )
         thread.start()
 
@@ -74,6 +82,7 @@ def run_inference(image, model, tokenizer, instruction):
         print(f"❌ Error during inference: {e}")
         return ""
 
+
 def evaluate_prompt(instruction, val_data, n):
     """
     val_data: DataFrame with ['image', 'caption'] columns,
@@ -87,8 +96,8 @@ def evaluate_prompt(instruction, val_data, n):
     for i, row in subset.iterrows():
         print(f"\n--- Processing sample {i+1}/{num_samples} ---")
         try:
-            pred = run_inference(row['image'], model, tokenizer, instruction)
-            score = get_similarity_score(row['caption'], pred)
+            pred = run_inference(row["image"], model, tokenizer, instruction)
+            score = get_similarity_score(row["caption"], pred)
             total_score += score
         except Exception as e:
             print(f"❌ Skipping sample due to error: {e}")
