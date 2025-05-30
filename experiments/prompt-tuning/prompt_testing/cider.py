@@ -127,7 +127,7 @@ class Cider:
 
     """
 
-    def __init__(self, n=1, df="coco-val-df"):
+    def __init__(self, n=4, df="coco-val-df"):
         """
         Initialize the CIDEr scoring function
         : param n (int): n-gram size
