@@ -1,0 +1,16 @@
+tqdm
+ipywidgets
+ipykernel
+jupyter
+matplotlib
+scipy
+git+https://github.com/huggingface/peft.git
+transformers
+accelerate
+torch
+datasets
+pycocoevalcap
+sentencepiece
+einops
+Pillow
+torchvision
