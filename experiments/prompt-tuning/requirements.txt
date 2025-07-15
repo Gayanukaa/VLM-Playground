@@ -15,4 +15,6 @@ sentencepiece
 einops
 Pillow
 torchvision
+torchaudio
 scikit-learn
+flash-attn
