@@ -1,14 +1,67 @@
 # Prompt Tuning Experiment Log
 
-| #  | **Component**                    | **CLIP Behavior**                                              | **Qwen2.5-VL Behavior**                                         | **Fix Attempted**                                            | **Why It Failed / Error**                                                                                     |
-| -- | -------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| 1  | **Visual Feature Access**        | `model.visual` returns embeddings directly                     | Qwen integrates vision inside full pipeline                     | Used `model.vision_model(pixel_values)`                      | ❌ `AttributeError`: `Qwen2_5_VLModel` has no attribute `vision_model`                                         |
-| 2  | **Image Embedding Extraction**   | `get_vision_features()` returns a clean vector                 | No such method in Qwen                                          | Called `model.get_vision_features()`                         | ❌ `AttributeError`: method doesn’t exist                                                                      |
-| 3  | **Image/Text Input Format**      | Separate text and image inputs (dual stream)                   | Requires `<image>` token inside prompt text                     | Manually inserted `<image>` string into text prompt          | ❌ `ValueError`: processor expects images as `PIL` or tensors, not a string                                    |
-| 4  | **Processor Pipeline**           | Separate image processor and tokenizer used independently      | Joint `AutoProcessor` handles both in sync                      | Used `apply_chat_template()` to simulate dialogue            | ❌ `TypeError: string indices must be integers` → Processor doesn't support that template style for this model |
-| 5  | **Tensor Shapes**                | Outputs are `[batch, 3, height, width]` consistently           | Outputs vary depending on context                               | Squeezed and indexed tensor manually                         | ❌ `IndexError`: tensors were 2D instead of 4D — inconsistent output shapes                                    |
-| 6  | **Attention Mask Alignment**     | Usually unnecessary, or default `1s` for prompt                | Must align mask for soft prompt + inputs manually               | Created new mask with `[1s for soft prompt] + original mask` | ⚠️ Technically worked, but performance degraded — attention wasn't aligned properly across modalities         |
-| 7  | **Prompt Injection**             | Learnable `[v1, v2, ..., vn]` + `[class label]` into tokenizer | Decoder model needs `inputs_embeds`, not tokenized class labels | Used soft prompt as `inputs_embeds` before text              | ⚠️ Partially worked — becomes soft prompt tuning, **not true CoOp**                                           |
-| 8  | **Gradient Flow Through Vision** | Visual stream separate — easy to tune only prompts             | Vision and language fused — hard to isolate                     | Backprop through `[soft_prompt + visual]` chain              | ❌ Couldn’t control gradients properly — entire model frozen, or update failed silently                        |
-| 9  | **Flat Prompt + Caption**        | `[soft prompt] + [class label]` naturally leads to logits      | Decoder needs causal LM format and caption tokens               | Used prompt `"Describe this remote sensing image"`           | ⚠️ Valid generation, but no class semantics — **not CoOp’s original goal**                                    |
-| 10 | **CLIP Classification Head**     | Output dot product between image + text embeddings             | Qwen generates full caption — no “matching score”               | Tried cosine similarity post-hoc                             | ⚠️ Not native — needs extra logic, breaks from CoOp philosophy                                                |
+Prompt tuning experiments on modern VLMs like Qwen2.5-VL, Pixtral 12B, and Phi 3.5 Vision showed fundamental architectural incompatibilities with traditional soft prompt tuning approaches. 
+
+The core issue is that these models use **monolithic decoder architectures** where vision and text are fused internally, making clean prompt injection difficult.
+
+## Architectural Challenges
+
+### Model Architecture Incompatibilities
+
+| Model | Architecture Type | Critical Limitation |
+| ----- | ----- | ----- |
+| **Qwen2.5-VL 7B** | Decoder-only VLM | Vision and text inputs are fused inside a monolithic forward pass. No `.vision_model`, `.get_input_embeddings()` doesn't exist or fails in some wrappers. |
+| **Pixtral 12B** | Vision-augmented decoder | Also decoder-only. Vision input and text tokens go through a shared stack. No exposed modular vision encoder. |
+| **Phi 3.5 Vision 4.2B** | Vision + chat-style decoder | `<image>` token triggers vision embedding internally. You can't intercept or prepend prompts in a clean way. Structured templates interfere with prompt injection. |
+
+### Why Soft Prompt Tuning Fails
+
+> **❌ Do *not* expose separate vision/text modules or clean embedding injection points**
+
+The monolithic decoder architecture and internal vision-text fusion make **soft prompt tuning difficult, error-prone, and often ineffective** in models like Qwen2.5-VL, Pixtral, and Phi 3.5 Vision.
+
+## Key Failure Points
+
+### Token Injection Blockers
+
+| Model | Token Injection Blocker | Risk if Misaligned |
+| ----- | ----- | ----- |
+| Qwen2.5-VL | Chat template + `<image>` expectation | Soft prompts ignored, vision lost |
+| Pixtral | No separation of image/text inputs | Prompt goes unnoticed |
+| Phi 3.5 Vision | Strict `<image>` positioning + chat roles | Breaks tokenizer or image path |
+
+### Requirements for Clean Prompt Attachment
+
+In soft prompt tuning, you **prepend learnable virtual tokens** (i.e., soft prompts) to the input sequence. For this to work:
+
+1. The model must interpret those tokens as part of the input context
+2. The tokenizer must not reformat, truncate, or rearrange them
+3. The model's architecture must not assume a strict prompt template (e.g., chat history, system-role split)
+
+## Experiment Log
+
+### Qwen2.5-VL PEFT-Based Approach
+
+![PEFT Approach Diagram](peft.png)
+
+| Issue | Explanation |
+| ----- | ----- |
+| **Vision Features Fused** | PEFT injects prompts only into **text**, but Qwen's generation heavily relies on **vision input**, which remains untouched |
+| **Inaccessible Vision Encoder** | Cannot prepend visual soft prompts (like in CoOp) — no `vision_model()` access |
+| **inputs_embeds Injection Limited** | Prompt tuning injects into decoder only. For captioning, much of the semantic control happens **post-fusion** |
+
+### Phi 3.5 Vision Manual Approach
+
+![Manual Approach Diagram](manual.png)
+
+| Issue | Explanation |
+| ----- | ----- |
+| **`<image>` Token Semantics** | Phi's image understanding depends on how the `<image>` token is embedded and interpreted — not influenced by soft prompt tuning |
+| **Decoder-Only Architecture** | Phi generates in fully autoregressive way; soft prompts at beginning **may get diluted** during long sequence generation |
+| **Prompt Position Sensitivity** | Without exact alignment of prompt, label shifts, and tokenization, soft prompt interferes with correct loss computation |
+| **No Visual Adaptation** | Vision stream never tuned or conditioned, limiting prompt impact in vision-language tasks |
+| **No Measurable Learning** | Model likely "ignores" the prompt if not deeply entangled with image-conditioning pathway |
+
+## Conclusion and Recommendations
+
+The experiment highlights the need for VLM-specific prompt tuning methods that account for the architectural differences between traditional CLIP-style models and modern decoder-only VLMs.
