@@ -18,6 +18,8 @@ experiments/prompt-tuning/data/filtered_dataset
 experiments/spice/SPICE-1.0
 experiments/spice/SPICE
 experiments/spice/spice_cache
+utils/annotations
+utils/annotations_trainval2017.zip
 
 # Distribution / packaging
 .Python
