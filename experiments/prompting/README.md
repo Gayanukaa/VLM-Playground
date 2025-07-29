@@ -37,9 +37,16 @@ Captioning and evaluation of Flickr30k images using the **Qwen-VL** model.
 1. **Install dependencies**:
    Make sure you have the required packages installed:
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+      ```bash
+      pip install -r requirements.txt
+      ```
+
+      Or, make the startup script executable and run it:
+
+      ```bash
+      chmod +x setup_env.sh
+      ./setup_env.sh
+      ```
 
 2. **Set up project directory**:
 

@@ -1,0 +1,3 @@
+[submodule "experiments/spice"]
+	path = experiments/spice
+	url = https://github.com/Gayanukaa/SPICE-Evaluator.git

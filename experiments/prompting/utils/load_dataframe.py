@@ -8,10 +8,7 @@ import torch
 from PIL import Image
 
 
-def create_image_caption_dataset(
-    image_folder: str,
-    captions_json: str
-) -> pd.DataFrame:
+def create_image_caption_dataset(image_folder: str, captions_json: str) -> pd.DataFrame:
     """
     Reads images and their captions from a JSON (key: filename, value: list of captions)
     and creates a DataFrame with ['image', 'caption'].
@@ -40,7 +37,6 @@ def create_image_caption_dataset(
         if not caption:
             continue
 
-
         image_path = os.path.join(image_folder, fname)
         try:
             img = Image.open(image_path).convert("RGB")
@@ -50,10 +46,7 @@ def create_image_caption_dataset(
             print(f"❌ Failed to load '{fname}': {e}")
             continue
 
-        records.append({
-            "image": img,
-            "caption": caption
-        })
+        records.append({"image": img, "caption": caption})
 
     df = pd.DataFrame(records)
     return df

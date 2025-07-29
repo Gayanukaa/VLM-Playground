@@ -1,17 +1,18 @@
 from unsloth import FastVisionModel  # FastLanguageModel for LLMs
-from transformers import TextIteratorStreamer
 import threading
-from sentence_transformers import SentenceTransformer, util
-from pycocoevalcap.meteor.meteor import Meteor
-from pycocoevalcap.cider.cider   import Cider
-from pycocoevalcap.spice.spice   import Spice
-from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
+
 import pandas as pd
+from pycocoevalcap.cider.cider import Cider
+from pycocoevalcap.meteor.meteor import Meteor
+from pycocoevalcap.spice.spice import Spice
+from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
+from sentence_transformers import SentenceTransformer, util
+from transformers import TextIteratorStreamer
 
 print("🔄 Loading vision-language model...")
 model, tokenizer = FastVisionModel.from_pretrained(
     "unsloth/Qwen2.5-VL-7B-Instruct-bnb-4bit",
-    #unsloth/Pixtral-12B-2409-bnb-4bit
+    # unsloth/Pixtral-12B-2409-bnb-4bit
     load_in_4bit=True,  # Use 4bit to reduce memory use. False for 16bit LoRA.
     use_gradient_checkpointing="unsloth",  # True or "unsloth" for long context
 )
@@ -23,6 +24,7 @@ scorer = SentenceTransformer("all-MiniLM-L6-v2").to("cuda")
 print("✅ Sentence transformer loaded.")
 
 # this code is specifically for dataset with multiple reference captions
+
 
 def get_similarity_score(reference_captions, generated_caption):
     try:
@@ -46,16 +48,12 @@ def score_per_image(refs, hypos):
     hypos: dict[int, List[str]]  (one hypo per id)
     returns: dict[id, {METEOR: float, CIDEr: float, SPICE: float}]
     """
-    scorers = [
-        (Meteor(), "METEOR"),
-        (Cider(),  "CIDEr"),
-        (Spice(),  "SPICE")
-    ]
+    scorers = [(Meteor(), "METEOR"), (Cider(), "CIDEr"), (Spice(), "SPICE")]
 
     ptb = PTBTokenizer()
-    refs_wrapped  = {i:[{"caption":c} for c in caps] for i, caps in refs.items()}
-    hypos_wrapped = {i:[{"caption":hypos[i][0]}]  for i in hypos}
-    refs_tok  = ptb.tokenize(refs_wrapped)
+    refs_wrapped = {i: [{"caption": c} for c in caps] for i, caps in refs.items()}
+    hypos_wrapped = {i: [{"caption": hypos[i][0]}] for i in hypos}
+    refs_tok = ptb.tokenize(refs_wrapped)
     hypos_tok = ptb.tokenize(hypos_wrapped)
 
     all_scores = {}
@@ -75,23 +73,28 @@ def score_per_image(refs, hypos):
 
     return all_scores
 
+
 def run_inference(image, model, tokenizer, instruction):
     print(f"🧠 Running inference with instruction: {instruction}")
     try:
         messages = [
-            {"role": "user", "content": [
-                {"type": "image"},
-                {"type": "text", "text": instruction}
-            ]}
+            {
+                "role": "user",
+                "content": [{"type": "image"}, {"type": "text", "text": instruction}],
+            }
         ]
 
         input_text = tokenizer.apply_chat_template(messages, add_generation_prompt=True)
         print(f"📝 Tokenized prompt: {input_text[:100]}...")  # show a short preview
 
-        inputs = tokenizer(image, input_text, add_special_tokens=False, return_tensors="pt").to("cuda")
+        inputs = tokenizer(
+            image, input_text, add_special_tokens=False, return_tensors="pt"
+        ).to("cuda")
         inputs.pop("token_type_ids", None)  # Pixtral models don’t need this
 
-        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        streamer = TextIteratorStreamer(
+            tokenizer, skip_prompt=True, skip_special_tokens=True
+        )
         generated_caption = ""
 
         print("🚀 Starting generation thread...")
@@ -103,8 +106,8 @@ def run_inference(image, model, tokenizer, instruction):
                 "max_new_tokens": 64,
                 "use_cache": True,
                 "temperature": 1.0,
-                "min_p": 0.1
-            }
+                "min_p": 0.1,
+            },
         )
         thread.start()
 
@@ -119,6 +122,7 @@ def run_inference(image, model, tokenizer, instruction):
         print(f"❌ Error during inference: {e}")
         return ""
 
+
 def evaluate_sample(prompts, sample, multiple_refs):
     """
     prompts: list of instructions to evaluate
@@ -128,14 +132,14 @@ def evaluate_sample(prompts, sample, multiple_refs):
     hypos = dict()
     cosine_scores = []
     if multiple_refs:
-        ref_cap_list = sample['caption']
+        ref_cap_list = sample["caption"]
     else:
-        ref_cap_list = [sample['caption']]
+        ref_cap_list = [sample["caption"]]
     refs = {i: ref_cap_list for i in range(len(prompts))}
 
     for i, prompt in enumerate(prompts):
         print(f"🧪 Evaluating instruction {i+1}/{len(prompts)}: '{prompt}'")
-        pred = run_inference(sample['image'], model, tokenizer, prompt)
+        pred = run_inference(sample["image"], model, tokenizer, prompt)
         print(f"🔹 Generated: {pred}")
         cos_score = get_similarity_score(ref_cap_list, pred)
         print(f"🔹 Semantic similarity: {cos_score:.4f}")
@@ -172,7 +176,7 @@ def evaluate_batch(prompts_list, val_data, indexes, multiple_refs=True):
 
     for i, (index, prompts) in enumerate(zip(indexes, prompts_list)):
         print(f"\n📦 Evaluating sample {i+1}/{len(indexes)} at index {index}...")
-        results = evaluate_sample(prompts, val_data[index],multiple_refs)
+        results = evaluate_sample(prompts, val_data[index], multiple_refs)
         for r in results:
             r["sample_index"] = index
         all_results.append(results)
