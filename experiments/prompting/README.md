@@ -1,4 +1,4 @@
-# Hand Conded Prompt Evaluation
+# Hand Coded Prompt Evaluation
 
 This folder contains evaluation scripts and Jupyter notebooks for testing and comparing visual language model (VLM) captioning performance across two datasets: **CAR Damage Dataset (CARDD)** and **Flickr30k**. It includes automated metric evaluation using CIDEr, SPICE, and cosine similarity.
 
@@ -70,4 +70,4 @@ Captioning and evaluation of Flickr30k images using the **Qwen-VL** model.
 
 ## 📧 Contact
 
-Built by [Gayanuka Amarasuriya](https://gayanukaa.github.io/).
+Built by [Gayanuka Amarasuriya](https://gayanukaa.com).
