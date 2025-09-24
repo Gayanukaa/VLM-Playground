@@ -187,3 +187,4 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+experiments/ft+hc-prompting/cardd/cardd_dataset.zip

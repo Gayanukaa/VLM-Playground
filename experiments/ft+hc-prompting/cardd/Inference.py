@@ -6,7 +6,7 @@ from PIL import Image as PILImage
 from io import BytesIO
 import pandas as pd
 from datasets import load_dataset, load_from_disk
-import json 
+import json
 #Initialize wandb
 import wandb
 from utils import evaluate_batch
@@ -58,7 +58,7 @@ def log_metrics_to_excel(
 
         raw_caption = sample_item['caption']
         caption_text = "\n".join(str(c) for c in raw_caption) if isinstance(raw_caption, list) else str(raw_caption)
-        
+
         row = {
             "sample_index": s,
             "prompt": prompts,
@@ -84,7 +84,7 @@ def log_metrics_to_excel(
     # insert images into column A
     for row_idx, pil_img in enumerate(pil_images, start=1):  # row 1 = header row
         img_stream = BytesIO()
-        pil_img.thumbnail((128, 128)) 
+        pil_img.thumbnail((128, 128))
         pil_img.save(img_stream, format="PNG")
         img_stream.seek(0)
         worksheet.insert_image(row_idx, 0, f"image_{row_idx}.png", {"image_data": img_stream})
@@ -178,11 +178,11 @@ if __name__ == "__main__":
             prompt,
             flickr_subset,
             samples,
-            multiple_refs, 
+            multiple_refs,
             MODEL_DIR=model_dir,
             LOAD_FROM_HF=args.load_from_hf
         )
-    
+
 
     print("✅ Evaluation complete!")
     print("📊 Results summary:")
