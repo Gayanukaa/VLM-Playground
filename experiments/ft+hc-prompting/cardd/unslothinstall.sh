@@ -71,5 +71,5 @@ export PATH=$PATH:$CORENLP_HOME
 echo "Java 8 and Stanford CoreNLP 4.5.10 setup complete at $CORENLP_HOME"
 
 # Install Python packages
-pip install wandb numpy pycocoevalcap sentence-transformers
+pip install wandb numpy pycocoevalcap sentence-transformers huggingface_hub
 wandb login

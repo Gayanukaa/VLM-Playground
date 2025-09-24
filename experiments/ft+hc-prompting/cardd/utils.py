@@ -153,17 +153,47 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
     """
     print(f"🔄 Loading vision-language model from {MODEL_DIR}...")
     BASE_MODEL = "unsloth/Qwen2-VL-7B-Instruct"
+    temp_dir = None  # Track temporary directory for cleanup
 
     # --- Load model ---
     try:
         if LOAD_FROM_HF:
-            # For HF loading, MODEL_DIR should be the HF repo ID
-            print(f"🔄 Loading fine-tuned model directly from Hugging Face: '{MODEL_DIR}'...")
-            model, tokenizer = FastVisionModel.from_pretrained(
-                MODEL_DIR,
-                load_in_4bit=True,
-                use_gradient_checkpointing="unsloth",
-            )
+            # For HF loading, first download the model to avoid Unsloth parsing issues
+            print(f"🔄 Downloading model from Hugging Face: '{MODEL_DIR}'...")
+            
+            # Create a temporary local directory for the downloaded model
+            import tempfile
+            import shutil
+            from huggingface_hub import snapshot_download
+            
+            temp_dir = tempfile.mkdtemp(prefix="hf_model_")
+            print(f"🔄 Downloading to temporary directory: {temp_dir}")
+            
+            try:
+                # Download the model
+                snapshot_download(
+                    repo_id=MODEL_DIR,
+                    local_dir=temp_dir,
+                    ignore_patterns=["*.git*", "README.md", "*.txt"]
+                )
+                
+                print(f"✅ Model downloaded successfully")
+                print(f"🔄 Loading model from local directory: {temp_dir}")
+                
+                # Now load from the local directory
+                model, tokenizer = FastVisionModel.from_pretrained(
+                    temp_dir,
+                    load_in_4bit=True,
+                    use_gradient_checkpointing="unsloth",
+                )
+                
+            except Exception as download_error:
+                print(f"❌ Error downloading model: {download_error}")
+                # Cleanup and try direct loading
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                raise download_error
+            
         else:
             # Check if MODEL_DIR exists as a local directory
             if os.path.exists(MODEL_DIR) and os.path.isdir(MODEL_DIR):
@@ -174,13 +204,34 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
                     use_gradient_checkpointing="unsloth",
                 )
             else:
-                # Fallback: treat MODEL_DIR as a HF repo ID
-                print(f"🔄 Local directory not found. Attempting to load from Hugging Face: '{MODEL_DIR}'...")
-                model, tokenizer = FastVisionModel.from_pretrained(
-                    MODEL_DIR,
-                    load_in_4bit=True,
-                    use_gradient_checkpointing="unsloth",
-                )
+                # Fallback: treat MODEL_DIR as a HF repo ID and download first
+                print(f"🔄 Local directory not found. Downloading from Hugging Face: '{MODEL_DIR}'...")
+                
+                import tempfile
+                import shutil
+                from huggingface_hub import snapshot_download
+                
+                temp_dir = tempfile.mkdtemp(prefix="hf_model_")
+                print(f"🔄 Downloading to temporary directory: {temp_dir}")
+                
+                try:
+                    snapshot_download(
+                        repo_id=MODEL_DIR,
+                        local_dir=temp_dir,
+                        ignore_patterns=["*.git*", "README.md", "*.txt"]
+                    )
+                    
+                    model, tokenizer = FastVisionModel.from_pretrained(
+                        temp_dir,
+                        load_in_4bit=True,
+                        use_gradient_checkpointing="unsloth",
+                    )
+                    
+                except Exception as download_error:
+                    if os.path.exists(temp_dir):
+                        shutil.rmtree(temp_dir)
+                    raise download_error
+                
     except Exception as e:
         print(f"❌ Error loading model from {MODEL_DIR}: {e}")
         print(f"🔍 LOAD_FROM_HF flag: {LOAD_FROM_HF}")
@@ -250,5 +301,16 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
             Cider_scores[idx] = 0.0
 
     print("✅ Batch evaluation complete!")
+    
+    # Cleanup temporary directory if it was created
+    if temp_dir and os.path.exists(temp_dir):
+        print(f"🧹 Cleaning up temporary directory: {temp_dir}")
+        try:
+            import shutil
+            shutil.rmtree(temp_dir)
+            print("✅ Temporary directory cleaned up")
+        except Exception as cleanup_error:
+            print(f"⚠️ Could not clean up temporary directory: {cleanup_error}")
+    
     return all_results, cosine_scores, Spice_scores, Cider_scores, Inference_time, Vram_usages
 
