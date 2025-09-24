@@ -153,24 +153,39 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
     """
     print(f"🔄 Loading vision-language model from {MODEL_DIR}...")
     BASE_MODEL = "unsloth/Qwen2-VL-7B-Instruct"
-    # --- Load model ---
-    if LOAD_FROM_HF:
-        print(f"🔄 Loading base model '{BASE_MODEL}'...")
-        model, tokenizer = FastVisionModel.from_pretrained(
-            BASE_MODEL,
-            load_in_4bit=True,
-            use_gradient_checkpointing="unsloth",
-        )
 
-        print(f"🔄 Applying adapter from '{MODEL_DIR}'...")
-        model.load_adapter(MODEL_DIR)
-    else:
-        print(f"🔄 Loading full model directly from '{MODEL_DIR}'...")
-        model, tokenizer = FastVisionModel.from_pretrained(
-            MODEL_DIR,
-            load_in_4bit=True,
-            use_gradient_checkpointing="unsloth",
-        )
+    # --- Load model ---
+    try:
+        if LOAD_FROM_HF:
+            # For HF loading, MODEL_DIR should be the HF repo ID
+            print(f"🔄 Loading fine-tuned model directly from Hugging Face: '{MODEL_DIR}'...")
+            model, tokenizer = FastVisionModel.from_pretrained(
+                MODEL_DIR,
+                load_in_4bit=True,
+                use_gradient_checkpointing="unsloth",
+            )
+        else:
+            # Check if MODEL_DIR exists as a local directory
+            if os.path.exists(MODEL_DIR) and os.path.isdir(MODEL_DIR):
+                print(f"🔄 Loading locally fine-tuned model from '{MODEL_DIR}'...")
+                model, tokenizer = FastVisionModel.from_pretrained(
+                    MODEL_DIR,
+                    load_in_4bit=True,
+                    use_gradient_checkpointing="unsloth",
+                )
+            else:
+                # Fallback: treat MODEL_DIR as a HF repo ID
+                print(f"🔄 Local directory not found. Attempting to load from Hugging Face: '{MODEL_DIR}'...")
+                model, tokenizer = FastVisionModel.from_pretrained(
+                    MODEL_DIR,
+                    load_in_4bit=True,
+                    use_gradient_checkpointing="unsloth",
+                )
+    except Exception as e:
+        print(f"❌ Error loading model from {MODEL_DIR}: {e}")
+        print(f"🔍 LOAD_FROM_HF flag: {LOAD_FROM_HF}")
+        print(f"🔍 MODEL_DIR exists locally: {os.path.exists(MODEL_DIR) if not LOAD_FROM_HF else 'N/A (loading from HF)'}")
+        raise
 
     model.eval()
     print("✅ Model loaded successfully.")

@@ -42,12 +42,13 @@ for i in "${!PROMPTS[@]}"; do
     echo "🚀 Running evaluation for prompt: \"$PROMPT\""
 
     if [ "$USE_HF_DOWNLOAD" = true ]; then
-        echo "➡️ Downloading model from Hugging Face repo_id: $REPO_ID"
+        echo "➡️ Loading model from Hugging Face repo: $RUN_REPO_ID"
         MODEL_DIR="$RUN_REPO_ID"
-        echo $MODEL_DIR
+        echo "🔍 Model directory set to: $MODEL_DIR"
     else
+        echo "➡️ Fine-tuning model locally first"
         MODEL_DIR="$SAVE_DIR"
-        echo "➡️ Running cardd_ft.py script"
+        echo "🔍 Model directory set to: $MODEL_DIR"
         python cardd_ft.py \
             --model_name "$MODEL_NAME" \
             --dataset_folder "$DATASET_FOLDER" \
@@ -59,14 +60,24 @@ for i in "${!PROMPTS[@]}"; do
 
     echo "Running inference"
     if [ -f "$RUN_SCRIPT" ]; then
-        python "$RUN_SCRIPT" \
-            --prompt "$PROMPT" \
-            --model-name "$MODEL_NAME" \
-            --dataset-folder "$SAMPLE_FOLDER" \
-            --wandb-project "$WANDB_PROJECT" \
-            --output-excel "$OUTPUT_XLS" \
-            --model-dir "$MODEL_DIR" \
-            #--load-from-hf #remove this flag if not loading from HF
+        if [ "$USE_HF_DOWNLOAD" = true ]; then
+            python "$RUN_SCRIPT" \
+                --prompt "$PROMPT" \
+                --model-name "$MODEL_NAME" \
+                --dataset-folder "$SAMPLE_FOLDER" \
+                --wandb-project "$WANDB_PROJECT" \
+                --output-excel "$OUTPUT_XLS" \
+                --model-dir "$MODEL_DIR" \
+                --load-from-hf
+        else
+            python "$RUN_SCRIPT" \
+                --prompt "$PROMPT" \
+                --model-name "$MODEL_NAME" \
+                --dataset-folder "$SAMPLE_FOLDER" \
+                --wandb-project "$WANDB_PROJECT" \
+                --output-excel "$OUTPUT_XLS" \
+                --model-dir "$MODEL_DIR"
+        fi
         echo "✅ Done. Excel saved at: $OUTPUT_XLS"
     else
         echo "❗ $RUN_SCRIPT not found in cwd. If you don't have it, run your own eval script and pass --model-name or --model-path as $MODEL_ROOT"
