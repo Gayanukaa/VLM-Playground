@@ -12,11 +12,11 @@ unzip cardd_dataset.zip
 
 # --- variables: change names if needed ---
 SAVE_DIR="unsloth_finetune"
-DATASET_FOLDER="cardd_dataset/kaggle/working/cardd_sample_hf/train"
+DATASET_FOLDER="/workspace/VLM-Playground/experiments/ft+hc-prompting/cardd/cardd_dataset/kaggle/working/cardd_data_hf/train"
 RUN_SCRIPT="Inference.py"
 WANDB_PROJECT="cardd-eval"
 MODEL_NAME="unsloth/Qwen2-VL-7B-Instruct"
-SAMPLE_FOLDER="cardd_sample/kaggle/working/cardd_sample_hf/train"
+SAMPLE_FOLDER="/workspace/VLM-Playground/experiments/ft+hc-prompting/cardd/cardd_sample/kaggle/working/cardd_sample_hf/train"
 USE_HF_DOWNLOAD=false
 
 HF_TOKEN=""  # add your huggingface token here

@@ -163,7 +163,7 @@ if __name__ == "__main__":
     samples = [0,1,2,3,4,5,6,7,8,9]
     multiple_refs = True
 
-    print("🔄 Loading Flickr subset dataset...")
+    print("🔄 Loading Car Damage subset dataset...")
     try:
         flickr_subset = load_from_disk(dataset_folder)
         print("✅ Dataset loaded. Number of samples:", len(flickr_subset))
