@@ -16,11 +16,12 @@ DATASET_FOLDER="/workspace/VLM-Playground/experiments/ft+hc-prompting/cardd/card
 RUN_SCRIPT="Inference.py"
 WANDB_PROJECT="cardd-eval"
 MODEL_NAME="unsloth/Qwen2-VL-7B-Instruct"
-SAMPLE_FOLDER="/workspace/VLM-Playground/experiments/ft+hc-prompting/cardd/cardd_sample/kaggle/working/cardd_sample_hf/train"
-USE_HF_DOWNLOAD=false
+SAMPLE_FOLDER="train"
+USE_HF_DOWNLOAD=false 
 
 HF_TOKEN=""  # add your huggingface token here
 REPO_ID=""  # add your huggingface repo id here
+
 
 # --- list of prompts ---
 PROMPTS=("an image of..."

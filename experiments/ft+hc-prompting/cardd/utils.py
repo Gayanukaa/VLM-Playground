@@ -7,6 +7,7 @@ from pycocoevalcap.spice.spice   import Spice
 from pycocoevalcap.cider.cider   import Cider
 from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
 import pandas as pd
+from cider import Cider
 import time
 import torch
 import os
@@ -30,7 +31,20 @@ def get_similarity_score(reference_captions, generated_caption, scorer):
         print(f"Error calculating cosine similarity: {e}")
         return 0.0
 
-def calculate_spice(gts, res, stanford_corenlp_home=None):
+def evaluate_cider(hypos, refs, PICKLE_PATH):
+    gts = {str(i): refs[i] for i in refs}
+
+    res = [{"image_id": str(i), "caption": hypos[i]} for i in hypos]
+   
+    # Evaluate
+    cider = Cider()
+    score, individual_scores = cider.compute_score(gts, res, PICKLE_PATH)
+    print(f"🎯 CIDEr score: {score:.4f}")
+
+    return score, individual_scores
+
+
+def  calculate_spice(gts, res, stanford_corenlp_home=None):
     """
     Calculates SPICE score.
     candidates: indexed dict of {str: list of dicts with 'caption' key}
@@ -145,15 +159,14 @@ def run_inference(image, model, tokenizer, instruction):
         # On error, return empty caption and zeros
         return "", 0.0, 0.0
 
-def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/workspace/unsloth-finetune", LOAD_FROM_HF=False):
+def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/workspace/unsloth-finetune", PICKLE_PATH = "/workspace/cardd-df.p", LOAD_FROM_HF=False):
     """
     prompts_list: list of instructions to evaluate
     val_data: DataFrame with ['image', 'caption'] columns,
     indexes: list of indexes to sample from val_data
     """
-    print(f"🔄 Loading vision-language model from {MODEL_DIR}...")
-    BASE_MODEL = "unsloth/Qwen2-VL-7B-Instruct"
-    temp_dir = None  # Track temporary directory for cleanup
+    print(f"🔄 Loading vision-language model from {MODEL_DIR}...") 
+
 
     # --- Load model ---
     try:
@@ -250,7 +263,6 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
     all_references = {}
     cosine_scores = {}
     Spice_scores = {}
-    Cider_scores = {}
     Inference_time = {}
     Vram_usages = {}
 
@@ -258,17 +270,15 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
         print(f"\n📦 Evaluating sample {index+1}/{len(indexes)} at index {index}...")
         sample = val_data[index]
         if multiple_refs:
-            reference_list = sample['caption']
+            reference_list = sample['caption'] 
+            pred, inference_time, peak_vram = run_inference(sample['image'], model, tokenizer, prompt)
+            cos_score = get_similarity_score(reference_list, pred,sentence_scorer)
+
         else:
             reference_list = [sample['caption']]
-
-        pred, inference_time, peak_vram = run_inference(sample['image'], model, tokenizer, prompt)
-        print(f"🔍 Generated prediction: '{pred[:100]}...'" if len(pred) > 100 else f"🔍 Generated prediction: '{pred}'")
-        print(f"🔍 Reference captions: {reference_list}")
-
-        cos_score = get_similarity_score(reference_list, pred, sentence_scorer)
-        print(f"🔍 Cosine similarity score: {cos_score}")
-
+            pred, inference_time, peak_vram = run_inference(sample['image'], model, tokenizer, prompt)
+            cos_score = get_similarity_score(reference_list, pred,sentence_scorer)
+       
         all_results[index] = pred
         all_references[index] = reference_list
         cosine_scores[index] = cos_score
@@ -278,12 +288,13 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
     # Prepare data for SPICE and CIDER evaluation
     gts = {}
     res = {}
-    for i, idx in enumerate(indexes):
-        gts[str(i)] = [{"caption": ref} for ref in all_references[idx]]
-        res[str(i)] = [{"caption": all_results[idx]}]
-
-    # Calculate SPICE scores
+    for j, idx in enumerate(indexes):
+        sample = val_data[idx]
+        refs = sample['caption'] if multiple_refs else [sample['caption']]
+        gts[str(j)] = [{"caption": ref} for ref in refs]
+        res[str(j)] = [{"caption": all_results[idx]}]
     spice_score, spice_scores_per_instance = calculate_spice(gts, res)
+
     if spice_scores_per_instance is not None and len(spice_scores_per_instance) > 0:
         for i, idx in enumerate(indexes):
             Spice_scores[idx] = spice_scores_per_instance[i]
@@ -291,26 +302,16 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
         for idx in indexes:
             Spice_scores[idx] = 0.0
 
-    # Calculate CIDER scores
-    cider_score, cider_scores_per_instance = calculate_cider(gts, res)
-    if cider_scores_per_instance is not None and len(cider_scores_per_instance) > 0:
-        for i, idx in enumerate(indexes):
-            Cider_scores[idx] = cider_scores_per_instance[i]
-    else:
-        for idx in indexes:
-            Cider_scores[idx] = 0.0
+    # Build dicts for CIDEr
+    hypos = {j: [all_results[idx]] for j, idx in enumerate(indexes)}  # index → string
+    refs_dict = {j: sample['caption'] if multiple_refs else [sample['caption']] 
+                 for j, idx in enumerate(indexes) 
+                 for sample in [val_data[idx]]}  # index → list of strings
+
+    # Call CIDEr evaluation
+    score, cider_scores = evaluate_cider(hypos, refs_dict, PICKLE_PATH)
+
 
     print("✅ Batch evaluation complete!")
-
-    # Cleanup temporary directory if it was created
-    if temp_dir and os.path.exists(temp_dir):
-        print(f"🧹 Cleaning up temporary directory: {temp_dir}")
-        try:
-            import shutil
-            shutil.rmtree(temp_dir)
-            print("✅ Temporary directory cleaned up")
-        except Exception as cleanup_error:
-            print(f"⚠️ Could not clean up temporary directory: {cleanup_error}")
-
-    return all_results, cosine_scores, Spice_scores, Cider_scores, Inference_time, Vram_usages
+    return all_results,cosine_scores, cider_scores,Spice_scores, Inference_time, Vram_usages
 

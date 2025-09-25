@@ -33,9 +33,9 @@ def log_metrics_to_excel(
     inference_times: List[float],
     vram_usage: List[float],
     cosine_scores: List[float],
-    spice_scores: List[float],
     cider_scores: List[float],
-    flickr_subset,
+    spice_scores: List[float],
+    test_subset,
     output_excel_path: str = "Flickr_pixtral.xlsx",
     prompts: str = None,
     wandb_project: str = "flickr-eval"
@@ -44,16 +44,16 @@ def log_metrics_to_excel(
     pil_images = []  # keep images for wandb and excel insertion
     n = len(samples)
     for i, s in enumerate(samples):
-        # Handle both dict and list formats
-        pred = results[s] if isinstance(results, dict) else (results[i] if i < len(results) else None)
-        time_taken = inference_times[s] if isinstance(inference_times, dict) else (inference_times[i] if i < len(inference_times) else None)
-        vram = vram_usage[s] if isinstance(vram_usage, dict) else (vram_usage[i] if i < len(vram_usage) else None)
-        cos = cosine_scores[s] if isinstance(cosine_scores, dict) else (cosine_scores[i] if i < len(cosine_scores) else None)
-        spice = spice_scores[s] if isinstance(spice_scores, dict) else (spice_scores[i] if i < len(spice_scores) else None)
-        cider = cider_scores[s] if isinstance(cider_scores, dict) else (cider_scores[i] if i < len(cider_scores) else None)
+        #pred = results[i] if i < len(results) else None
+        pred = results.get(s, None)
+        time_taken = inference_times.get(s, None)
+        vram       = vram_usage.get(s, None)
+        cos        = cosine_scores.get(s, None)
+        spice      = spice_scores.get(s, None)
+        cider = cider_scores[s] if s < len(cider_scores) else None
 
         # sample lookup
-        sample_item = flickr_subset[s]
+        sample_item = test_subset[s]
         pil_img = sample_item['image']
         if not isinstance(pil_img, PILImage.Image):
             pil_img = PILImage.fromarray(pil_img)
@@ -101,7 +101,7 @@ def log_metrics_to_excel(
     except Exception as e:
         print(f"[warning] wandb.init failed: {e}. Skipping wandb logging.")
         return df, None
-    table_cols = ["sample_index", "image", "prediction", "cosine_score", "spice_score", "cider_score", "vram_usage", "inference_time_s", "prompt"]
+    table_cols = ["sample_index", "image", "prediction", "cosine_score", "cider_score", "spice_score", "vram_usage", "inference_time_s", "prompt"]
     wandb_table = wandb.Table(columns=table_cols)
     for i, row in enumerate(rows):
         pil_img = pil_images[i]
@@ -116,6 +116,7 @@ def log_metrics_to_excel(
             wb_image,
             row["prediction"],
             row["cosine_score"],
+            row["cider_score"],
             row["spice_score"],
             row["cider_score"],
             row["vram_usage"],
@@ -139,6 +140,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run inference on a vision-language model")
     parser.add_argument("--prompt", type=str, default="Explain the image content step by step.", help="Prompt for the model")
     parser.add_argument("--model-name", type=str, default="Pixtral-12B", help="Model name to evaluate (e.g. Pixtral-12B)")
+    parser.add_argument("--base-model", type=str, default="unsloth/Qwen2-VL-7B-Instruct", help="Base model name (Hugging Face repo)")
+    parser.add_argument("--pickle-path", type=str, default="/workspace/cardd-df.p", help="Path to the pickle file for CIDEr evaluation")
     parser.add_argument("--dataset-folder", type=str, default="/workspace/filtered_dataset", help="Fallback image folder (if dataset items are paths)")
     parser.add_argument("--wandb-project", type=str, default="flickr-eval", help="WandB project name")
     parser.add_argument("--output-excel", type=str, default="Flickr_pixtral.xlsx", help="Output Excel file path")
@@ -170,21 +173,23 @@ if __name__ == "__main__":
 
     print("🔄 Loading Car Damage subset dataset...")
     try:
-        flickr_subset = load_from_disk(dataset_folder)
-        print("✅ Dataset loaded. Number of samples:", len(flickr_subset))
+        test_subset = load_from_disk(dataset_folder)
+        print("✅ Dataset loaded. Number of samples:", len(test_subset))
     except Exception as e:
         print(f"[warning] Could not load dataset via load_from_disk({dataset_folder}): {e}")
         # fallback: try to treat dataset_folder as a directory of images
-        flickr_subset = []
-        print("⚠️ flickr_subset is empty; images will be looked up from --img-folder by index when possible")
+        test_subset = []
+        print("⚠️ test_subset is empty; images will be looked up from --img-folder by index when possible")
 
     print(f"🚀 Running evaluation batch with model {model_name}...")
-    results, cosine_scores, spice_scores, cider_scores, inference_times, vram_usage = evaluate_batch(
+    results, cosine_scores, cider_scores, spice_scores, inference_times, vram_usage = evaluate_batch(
             prompt,
-            flickr_subset,
+            test_subset,
             samples,
             multiple_refs,
             MODEL_DIR=model_dir,
+            BASE_MODEL = args.base_model, 
+            PICKLE_PATH = args.pickle_path,
             LOAD_FROM_HF=args.load_from_hf
         )
 
@@ -192,6 +197,7 @@ if __name__ == "__main__":
     print("✅ Evaluation complete!")
     print("📊 Results summary:")
     print("Cosine scores:", cosine_scores)
+    print("CIDEr scores:", cider_scores)
     print("SPICE scores:", spice_scores)
     print("CIDER scores:", cider_scores)
     print("Inference times:", inference_times)
@@ -206,9 +212,9 @@ if __name__ == "__main__":
         inference_times,
         vram_usage,
         cosine_scores,
-        spice_scores,
         cider_scores,
-        flickr_subset,
+        spice_scores,
+        test_subset,
         output_excel_path=excel_path,
         prompts=prompt,
         wandb_project=wandb_project
