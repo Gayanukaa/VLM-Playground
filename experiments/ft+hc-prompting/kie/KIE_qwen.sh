@@ -6,26 +6,44 @@ chmod +x unslothinstall.sh
 
 source unsloth_env/bin/activate
 
-unzip kie_subset.zip
 # --- variables: change names if needed ---
 SAVE_DIR="unsloth_finetune"
-DATASET_FOLDER="workspace/train"
 RUN_SCRIPT="Inference.py"   
-WANDB_PROJECT="kie-eval"
+WANDB_PROJECT="cardd-eval"
 MODEL_NAME="unsloth/Qwen2-VL-7B-Instruct"
-SAMPLE_FOLDER="kaggle/working/kie_sample_hf/train"
-USE_HF_DOWNLOAD=true 
+USE_HF_DOWNLOAD=false 
+#DATASET_REPO="RR32444/cardd_dataset"
+SAMPLE_REPO="RR32444/kie_subset"
+MODEL_DIR="$SAVE_DIR"
 
 HF_TOKEN=""  # add your huggingface token here
 REPO_ID=""  # add your huggingface repo id here
 
 
 # --- list of prompts ---
-PROMPTS=("an image of..."
-            # ,"Explain the visible damage to this vehicle. Question: What areas are affected and how severe is the damage? Answer:",
-            # "You are an insurance claims assessor. Provide a detailed description of the car’s condition.",
-            # "This \<part\_1> of the car has \<damage_type\_1> . The severity appears to be \<severity\_1>. Additional notes: \<text\_1>.",
-            # "Describe the damage in the following format – Damage Type: \_\_\_; Affected Part: \_\_\_; Severity: \_\_\_; Notes: \_\_\_"
+PROMPTS=( """You are a highly accurate document understanding agent designed to extract structured information from scanned receipts, invoices, and sales slips.
+
+Your goal is to extract a fixed set of predefined fields from a given document image and return them as a single well-formed JSON object.
+
+Follow these rules carefully:
+1. Match Labels and Synonyms: Use exact field labels or common variations (e.g., "Tax ID", "GST No.", "TIN").
+2. Position Awareness: Use the layout of the document to infer missing labels (e.g., phone number near store name).
+3. Text Cleanup: Remove OCR noise, headers, and irrelevant content.
+4. Currency Handling: Preserve currency symbols and decimal formatting in monetary values.
+5. Missing or Unreadable Fields: If a field is not present or unreadable, return its value as "".
+6. Field Consistency: Always return the same 8 fields, in the exact order shown below.
+
+Output format must strictly match this schema:
+{
+  "date": "DD/MM/YYYY or similar format",
+  "doc_no_receipt_no": "...",
+  "seller_name": "...",
+  "seller_address": "...",
+  "seller_phone": "...",
+  "seller_gst_id": "...",
+  "total_tax": "...",
+  "total_amount": "..."
+}"""
 )
 
 mkdir -p "$SAVE_DIR"
@@ -35,7 +53,7 @@ for i in "${!PROMPTS[@]}"; do
     PROMPT="${PROMPTS[i]}"
     NUM=$(printf "%02d" $((i+1)))   # 01, 02, 03, 04
 
-    OUTPUT_XLS="kie_prompt${NUM}.xlsx"
+    OUTPUT_XLS="cardd_prompt${NUM}.xlsx"
     RUN_REPO_ID="${REPO_ID}-prompt${NUM}"
     echo "🚀 Running evaluation for prompt: \"$PROMPT\""
     
@@ -45,8 +63,8 @@ for i in "${!PROMPTS[@]}"; do
         echo $MODEL_DIR
     else
         MODEL_DIR="$SAVE_DIR"
-        echo "➡️ Running kie_ft.py script"
-        python kie_ft.py \
+        echo "➡️ Running cardd_ft.py script"
+        python cardd_ft.py \
             --model_name "$MODEL_NAME" \
             --save_dir "$SAVE_DIR" \
             --prompt "$PROMPT" \
@@ -56,14 +74,20 @@ for i in "${!PROMPTS[@]}"; do
 
     echo "Running inference"
     if [ -f "$RUN_SCRIPT" ]; then
-        python "$RUN_SCRIPT" \
-            --prompt "$PROMPT" \
-            --model-name "$MODEL_NAME" \
-            --dataset-folder "$SAMPLE_FOLDER" \
-            --wandb-project "$WANDB_PROJECT" \
-            --output-excel "$OUTPUT_XLS" \
-            --model-dir "$MODEL_DIR" \
-            --load-from-hf #remove this flag if not loading from HF
+        CMD="python \"$RUN_SCRIPT\" \
+            --prompt \"$PROMPT\" \
+            --model-name \"$MODEL_NAME\" \
+            --subset-repo \"$SAMPLE_REPO\" \
+            --wandb-project \"$WANDB_PROJECT\" \
+            --output-excel \"$OUTPUT_XLS\" \
+            --model-dir \"$MODEL_DIR\""
+        # Conditionally add HF flag
+        if [ "$USE_HF_DOWNLOAD" = true ]; then
+            CMD="$CMD --load-from-hf"
+        fi
+
+        # Run it
+        eval $CMD
         echo "✅ Done. Excel saved at: $OUTPUT_XLS"
     else
         echo "❗ $RUN_SCRIPT not found in cwd. If you don't have it, run your own eval script and pass --model-name or --model-path as $MODEL_ROOT"

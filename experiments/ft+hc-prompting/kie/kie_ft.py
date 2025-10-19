@@ -33,21 +33,21 @@ def main(args):
         loftq_config = None,
     )
 
-    exclude_indices = args.exclude if args.exclude else []
     print("✅ Model loaded successfully.")
 
-    print("🔄 Loading KIE dataset dataset...")
+    print("🔄 Loading KIE dataset...")
     kie_dataset = load_dataset("nanonets/key_information_extraction", split="test")
     print("✅ Loaded:", len(kie_dataset))
-
-    # --- Filter dataset ---
-    # keep only samples that are NOT in exclude_indices
-    train_dataset = kie_dataset.select(
-        [i for i in range(len(kie_dataset)) if i not in exclude_indices]
-    )
-
-    print("Filtered Dataset size:", len(train_dataset))
-
+    
+    # Split 80/20 reproducibly
+    split_dataset = kie_dataset.train_test_split(test_size=0.2, seed=42)
+    
+    train_dataset = split_dataset['train']
+    test_dataset = split_dataset['test']
+    
+    print("✅ Train size:", len(train_dataset))
+    print("✅ Test size:", len(test_dataset))
+    
     def convert_to_conversation(sample):
         conversation = [
             {"role": "user",
@@ -56,7 +56,7 @@ def main(args):
                  {"type": "image", "image": sample["image"]}]},
             {"role": "assistant",
              "content": [
-                 {"type": "text", "text": sample["caption"][0]}]},
+                 {"type": "text", "text": sample["caption"]}]},
         ]
         return {"messages": conversation}
 
@@ -140,23 +140,22 @@ def main(args):
     model.save_pretrained(save_dir)
     tokenizer.save_pretrained(save_dir)
 
-    # Zip the directory
-    zip_path = make_archive(save_dir, 'zip', save_dir)
-    print(f"✅ Model zipped at {zip_path}")
+    model.push_to_hub(args.repo_id, token=args.hf_token)
+    tokenizer.push_to_hub(args.repo_id, token=args.hf_token)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Finetune a VLM with Unsloth")
     parser.add_argument("--model_name", type=str, required=True,
-                        help="Base model to load (e.g., unsloth/Pixtral-12B-2409)")
+                        help="Base model to load (e.g., unsloth/Pixtral-12B-2409)"),
+
     parser.add_argument("--save_dir", type=str, default="flickr_px_finetune",
                         help="Directory to save the fine-tuned model")
     parser.add_argument("--prompt", type=str, default="Describe the image in detail.",
                         help="Prompt instruction for training")
-    parser.add_argument(
-        "--exclude",
-        nargs="+",
-        type=int,
-        help="List of indices to exclude from dataset"
-    )
+    parser.add_argument("--hf_token", type=str, required=True,
+                        help="Your Hugging Face access token")
+    parser.add_argument("--repo_id", type=str, required=True,
+                        help="Where to save the trained model")
+
     args = parser.parse_args()
     main(args)
