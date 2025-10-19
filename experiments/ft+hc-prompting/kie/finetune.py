@@ -105,25 +105,43 @@ def finetune_model(
     print(f"✅ Evaluation dataset loaded: {len(eval_dataset)} samples")
 
     def convert_to_conversation(sample):
-        # KIE dataset has 'ground_truth' field containing JSON annotations
+        """Convert KIE sample to conversation format for Unsloth.
+
+        The KIE dataset has:
+        - 'image': binary/bytes that needs to be decoded to PIL Image
+        - 'annotations': dict with KIE fields (date, seller_name, total_amount, etc.)
+        """
+        from PIL import Image
+        from io import BytesIO
+        import json
+
+        # Decode bytes to PIL Image
+        if isinstance(sample["image"], bytes):
+            image = Image.open(BytesIO(sample["image"]))
+        else:
+            image = sample["image"]
+
+        # Get annotations (use 'annotations' field, fallback to 'ground_truth' or 'annotation')
+        annotations = sample.get("annotations", sample.get("ground_truth", sample.get("annotation", "")))
+
         # Convert dict to JSON string if needed
-        ground_truth = sample.get("ground_truth", sample.get("annotation", ""))
-        if isinstance(ground_truth, dict):
-            import json
-            ground_truth = json.dumps(ground_truth)
+        if isinstance(annotations, dict):
+            annotations_text = json.dumps(annotations)
+        else:
+            annotations_text = str(annotations)
 
         conversation = [
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
-                    {"type": "image", "image": sample["image"]}
+                    {"type": "image", "image": image}
                 ]
             },
             {
                 "role": "assistant",
                 "content": [
-                    {"type": "text", "text": str(ground_truth)}
+                    {"type": "text", "text": annotations_text}
                 ]
             },
         ]

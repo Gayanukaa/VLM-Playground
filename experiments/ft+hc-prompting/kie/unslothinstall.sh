@@ -6,7 +6,7 @@ python -m venv unsloth_env
 source unsloth_env/bin/activate
 
 pip install --upgrade pip
-pip install ipykernel
+pip install ipykernel==6.30.1
 pip install kaggle
 pip install openpyxl
 pip install datasets pandas

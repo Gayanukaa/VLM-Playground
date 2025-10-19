@@ -170,9 +170,16 @@ def run_inference_batch(
         print(f"\n📦 Processing sample {idx}...")
         sample = test_dataset[idx]
 
+        # Decode bytes to PIL Image if needed
+        from io import BytesIO
+        if isinstance(sample['image'], bytes):
+            image = PILImage.open(BytesIO(sample['image']))
+        else:
+            image = sample['image']
+
         # Run inference
         pred, inf_time, vram = run_inference(
-            sample['image'],
+            image,
             model,
             tokenizer,
             prompt,
@@ -180,8 +187,13 @@ def run_inference_batch(
         )
 
         predictions[idx] = pred
-        # KIE dataset has 'ground_truth' field containing JSON annotations
-        ground_truths[idx] = sample.get('ground_truth', sample.get('annotation', ''))
+        # KIE dataset has 'annotations' field containing dict with KIE fields
+        annotations = sample.get('annotations', sample.get('ground_truth', sample.get('annotation', '')))
+        # Convert dict to JSON string if needed
+        if isinstance(annotations, dict):
+            import json
+            annotations = json.dumps(annotations)
+        ground_truths[idx] = str(annotations)
         inference_times[idx] = inf_time
         vram_usage[idx] = vram
 
