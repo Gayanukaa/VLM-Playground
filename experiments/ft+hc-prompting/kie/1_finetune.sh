@@ -187,7 +187,9 @@ for i, (key, prompt) in enumerate(data):
     fi
 
     PROMPT_INDEX=$((INDEX + 1))
-    PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)    echo ""
+    PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)
+
+    echo ""
     echo "------------------------------------------------------------------------"
     echo "🔄 Fine-tuning prompt $PROMPT_INDEX/$PROMPTS_COUNT: $KEY"
     echo "------------------------------------------------------------------------"
