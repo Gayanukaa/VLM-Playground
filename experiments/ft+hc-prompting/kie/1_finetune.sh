@@ -214,13 +214,30 @@ for i, (key, prompt) in enumerate(data):
     fi
     echo ""
 
-    # Build command
-    CMD="python finetune.py \
-        --model-name \"$BASE_MODEL\" \
-        --train-dataset \"$TRAIN_DATASET\" \
-        --eval-dataset \"$EVAL_DATASET\" \
-        --save-dir \"$SAVE_DIR\" \
-        --prompt \"$PROMPT_TEXT\" \
+    # Write prompt to a temporary file to avoid shell escaping issues
+    PROMPT_TEMP_FILE=$(mktemp)
+    echo "$PROMPT_TEXT" > "$PROMPT_TEMP_FILE"
+
+    # Build command - use direct execution instead of eval to avoid escaping issues
+    if [ "$FP16" = true ]; then
+        FP16_FLAG="--fp16"
+    else
+        FP16_FLAG=""
+    fi
+
+    if [ "$UPLOAD_TO_HF" = true ] && [ -n "$HF_REPO_ID" ] && [ -n "$HF_TOKEN" ]; then
+        HF_FLAGS="--upload-to-hf --hf-token $HF_TOKEN --repo-id $HF_REPO_ID"
+    else
+        HF_FLAGS=""
+    fi
+
+    # Run fine-tuning - read prompt from file to avoid quoting issues
+    python finetune.py \
+        --model-name "$BASE_MODEL" \
+        --train-dataset "$TRAIN_DATASET" \
+        --eval-dataset "$EVAL_DATASET" \
+        --save-dir "$SAVE_DIR" \
+        --prompt "$(cat "$PROMPT_TEMP_FILE")" \
         --lora-r $LORA_R \
         --lora-alpha $LORA_ALPHA \
         --lora-dropout $LORA_DROPOUT \
@@ -229,24 +246,16 @@ for i, (key, prompt) in enumerate(data):
         --gradient-accumulation-steps $GRADIENT_ACCUMULATION_STEPS \
         --warmup-ratio $WARMUP_RATIO \
         --max-steps $MAX_STEPS \
-        --optim \"$OPTIMIZER\" \
-        --lr-scheduler \"$LR_SCHEDULER\" \
+        --optim "$OPTIMIZER" \
+        --lr-scheduler "$LR_SCHEDULER" \
         --weight-decay $WEIGHT_DECAY \
         --max-seq-length $MAX_SEQ_LENGTH \
-        --seed $SEED"
+        --seed $SEED \
+        $FP16_FLAG \
+        $HF_FLAGS
 
-    # Add FP16 flag if enabled
-    if [ "$FP16" = true ]; then
-        CMD="$CMD --fp16"
-    fi
-
-    # Add HuggingFace upload if enabled
-    if [ "$UPLOAD_TO_HF" = true ] && [ -n "$HF_REPO_ID" ] && [ -n "$HF_TOKEN" ]; then
-        CMD="$CMD --upload-to-hf --hf-token \"$HF_TOKEN\" --repo-id \"$HF_REPO_ID\""
-    fi
-
-    # Run fine-tuning
-    eval $CMD
+    # Clean up temp file
+    rm -f "$PROMPT_TEMP_FILE"
 
     echo ""
     echo "✅ Fine-tuning complete for prompt: $KEY"

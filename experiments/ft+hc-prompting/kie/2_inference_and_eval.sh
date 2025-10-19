@@ -215,15 +215,22 @@ for i, (key, prompt) in enumerate(data):
 
     echo "🔄 Running inference..."
 
+    # Write prompt to a temporary file to avoid shell escaping issues
+    PROMPT_TEMP_FILE=$(mktemp)
+    echo "$PROMPT_TEXT" > "$PROMPT_TEMP_FILE"
+
     python inference.py \
         --model-path "$MODEL_PATH" \
         $LOAD_FROM_HF_FLAG \
         --base-model "$BASE_MODEL" \
         --test-dataset "$TEST_DATASET" \
-        --prompt "$PROMPT_TEXT" \
+        --prompt "$(cat "$PROMPT_TEMP_FILE")" \
         --sample-indices "$SAMPLE_INDICES" \
         --max-new-tokens $MAX_NEW_TOKENS \
         --output-dir "$INFERENCE_OUTPUT_DIR"
+
+    # Clean up temp file
+    rm -f "$PROMPT_TEMP_FILE"
 
     echo "✅ Inference complete!"
     echo ""
