@@ -5,9 +5,9 @@ apt install -y git unzip
 python -m venv unsloth_env
 source unsloth_env/bin/activate
 
-pip install --upgrade pip  
-pip install ipykernel  
-pip install kaggle 
+pip install --upgrade pip
+pip install ipykernel
+pip install kaggle
 pip install openpyxl
 pip install datasets pandas
 pip install unsloth
@@ -72,5 +72,7 @@ echo "Java 8 and Stanford CoreNLP 4.5.10 setup complete at $CORENLP_HOME"
 
 # Install Python packages
 pip install wandb numpy pycocoevalcap sentence-transformers
-wandb login
+pip install huggingface-hub
+pip install PyYAML python-Levenshtein xlsxwriter openpyxl
 
+wandb login

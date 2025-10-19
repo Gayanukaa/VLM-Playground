@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+"""
+Run inference on fine-tuned KIE model.
+Loads model from HuggingFace or local directory and generates predictions.
+"""
+
+import argparse
+import json
+import time
+import threading
+import torch
+from typing import List, Dict, Any
+from PIL import Image as PILImage
+from datasets import load_from_disk
+from unsloth import FastVisionModel
+from transformers import TextIteratorStreamer
+
+
+def run_inference(
+    image,
+    model,
+    tokenizer,
+    instruction: str,
+    max_new_tokens: int = 256,
+    temperature: float = 1.0,
+    min_p: float = 0.1
+):
+    """
+    Run inference on a single image with the given instruction.
+
+    Args:
+        image: PIL Image or image data
+        model: Vision-language model
+        tokenizer: Tokenizer
+        instruction: Text prompt/instruction
+        max_new_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        min_p: Minimum probability for sampling
+
+    Returns:
+        Tuple of (generated_caption, inference_time_s, peak_vram_mb)
+    """
+    try:
+        # Build the chat prompt
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": instruction}
+                ]
+            }
+        ]
+        input_text = tokenizer.apply_chat_template(messages, add_generation_prompt=True)
+
+        # Prepare inputs and move to CUDA
+        inputs = tokenizer(image, input_text, add_special_tokens=False, return_tensors="pt").to("cuda")
+        inputs.pop("token_type_ids", None)
+
+        # Reset CUDA memory stats
+        torch.cuda.reset_peak_memory_stats(device="cuda")
+
+        # Start timing
+        t_start = time.time()
+
+        # Set up the streamer and launch generation in a thread
+        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        thread = threading.Thread(
+            target=model.generate,
+            kwargs={
+                **inputs,
+                "streamer": streamer,
+                "max_new_tokens": max_new_tokens,
+                "use_cache": True,
+                "temperature": temperature,
+                "min_p": min_p
+            }
+        )
+        thread.start()
+
+        # Collect tokens
+        generated_caption = ""
+        for token in streamer:
+            generated_caption += token
+
+        # Ensure generation is done
+        thread.join()
+
+        # Stop timing
+        t_end = time.time()
+        inference_time_s = t_end - t_start
+
+        # Peak VRAM usage in bytes → convert to MiB
+        peak_vram_bytes = torch.cuda.max_memory_allocated(device="cuda")
+        peak_vram_mb = peak_vram_bytes / (1024 ** 2)
+
+        return generated_caption.strip(), inference_time_s, peak_vram_mb
+
+    except Exception as e:
+        print(f"❌ Error during inference: {e}")
+        return "", 0.0, 0.0
+
+
+def load_model(
+    model_path: str,
+    load_from_hf: bool = False,
+    base_model: str = "unsloth/gemma-3-12b-it"
+):
+    """
+    Load model and tokenizer.
+
+    Args:
+        model_path: Path to model (local directory or HF repo)
+        load_from_hf: Whether to load base model and apply adapter
+        base_model: Base model name (used if load_from_hf is True)
+
+    Returns:
+        Tuple of (model, tokenizer)
+    """
+    if load_from_hf:
+        print(f"🔄 Loading base model: {base_model}")
+        model, tokenizer = FastVisionModel.from_pretrained(
+            base_model,
+            load_in_4bit=True,
+            use_gradient_checkpointing="unsloth",
+        )
+
+        print(f"🔄 Applying adapter from: {model_path}")
+        model.load_adapter(model_path)
+    else:
+        print(f"🔄 Loading full model from: {model_path}")
+        model, tokenizer = FastVisionModel.from_pretrained(
+            model_path,
+            load_in_4bit=True,
+            use_gradient_checkpointing="unsloth",
+        )
+
+    model.eval()
+    print("✅ Model loaded successfully.")
+    return model, tokenizer
+
+
+def run_inference_batch(
+    model,
+    tokenizer,
+    test_dataset,
+    prompt: str,
+    sample_indices: List[int],
+    max_new_tokens: int = 256,
+    temperature: float = 1.0,
+    min_p: float = 0.1
+) -> tuple[Dict[int, str], Dict[int, str], Dict[int, float], Dict[int, float]]:
+    """
+    Run inference on a batch of samples.
+
+    Args:
+        model: Vision-language model
+        tokenizer: Tokenizer
+        test_dataset: Test dataset
+        prompt: Instruction prompt
+        sample_indices: List of sample indices to process
+        max_new_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        min_p: Minimum probability for sampling
+
+    Returns:
+        Tuple of (predictions, ground_truths, inference_times, vram_usage)
+    """
+    predictions = {}
+    ground_truths = {}
+    inference_times = {}
+    vram_usage = {}
+
+    print(f"🚀 Running inference on {len(sample_indices)} samples...")
+
+    for idx in sample_indices:
+        print(f"\n📦 Processing sample {idx}...")
+        sample = test_dataset[idx]
+
+        # Run inference
+        pred, inf_time, vram = run_inference(
+            sample['image'],
+            model,
+            tokenizer,
+            prompt,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            min_p=min_p
+        )
+
+        predictions[idx] = pred
+        ground_truths[idx] = sample['caption']
+        inference_times[idx] = inf_time
+        vram_usage[idx] = vram
+
+        print(f"   ⏱️  Inference time: {inf_time:.3f}s")
+        print(f"   💾 VRAM usage: {vram:.2f} MB")
+        print(f"   📝 Prediction: {pred[:100]}...")
+
+    print("\n✅ Inference batch complete!")
+    return predictions, ground_truths, inference_times, vram_usage
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run inference on KIE model")
+
+    # Model
+    parser.add_argument("--model-path", type=str, required=True,
+                        help="Path to model (local or HF repo)")
+    parser.add_argument("--load-from-hf", action="store_true",
+                        help="Load base model and apply adapter from model-path")
+    parser.add_argument("--base-model", type=str, default="unsloth/gemma-3-12b-it",
+                        help="Base model (used with --load-from-hf)")
+
+    # Data
+    parser.add_argument("--test-dataset", type=str, default="./kie_splits/test",
+                        help="Path to test dataset")
+    parser.add_argument("--prompt", type=str, required=True,
+                        help="Instruction prompt for inference")
+    parser.add_argument("--sample-indices", type=str, default="0,1,2,3,4,5,6,7,8,9",
+                        help="Comma-separated list of sample indices to process")
+
+    # Inference parameters
+    parser.add_argument("--max-new-tokens", type=int, default=256,
+                        help="Maximum tokens to generate")
+    parser.add_argument("--temperature", type=float, default=1.0,
+                        help="Sampling temperature (use 1.0 for greedy)")
+    parser.add_argument("--min-p", type=float, default=0.1,
+                        help="Minimum probability for sampling")
+
+    # Output
+    parser.add_argument("--output-dir", type=str, default="./inference_results",
+                        help="Directory to save inference results")
+
+    args = parser.parse_args()
+
+    # Parse sample indices
+    sample_indices = [int(x.strip()) for x in args.sample_indices.split(",")]
+
+    # Load model
+    model, tokenizer = load_model(
+        args.model_path,
+        args.load_from_hf,
+        args.base_model
+    )
+
+    # Load test dataset
+    print(f"\n🔄 Loading test dataset from: {args.test_dataset}")
+    test_dataset = load_from_disk(args.test_dataset)
+    print(f"✅ Test dataset loaded: {len(test_dataset)} samples")
+
+    # Run inference
+    predictions, ground_truths, inference_times, vram_usage = run_inference_batch(
+        model,
+        tokenizer,
+        test_dataset,
+        args.prompt,
+        sample_indices,
+        args.max_new_tokens,
+        args.temperature,
+        args.min_p
+    )
+
+    # Save results
+    import os
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    results = {
+        "prompt": args.prompt,
+        "model_path": args.model_path,
+        "sample_indices": sample_indices,
+        "predictions": predictions,
+        "ground_truths": ground_truths,
+        "inference_times": inference_times,
+        "vram_usage": vram_usage,
+    }
+
+    output_file = os.path.join(args.output_dir, "inference_results.json")
+    with open(output_file, "w") as f:
+        json.dump(results, f, indent=4)
+
+    print(f"\n💾 Results saved to: {output_file}")
