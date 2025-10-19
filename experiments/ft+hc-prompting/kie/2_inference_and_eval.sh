@@ -1,17 +1,11 @@
 #!/bin/bash
 # ============================================================================
-# Script 2: Inference and Evaluation
-# ============================================================================
 # This script runs inference on fine-tuned models and evaluates them.
 # It loops over all prompts in prompts.yml and evaluates each corresponding
 # fine-tuned model. Can also load models from HuggingFace.
 # ============================================================================
 
 set -e  # Stop on any error
-
-# ============================================================================
-# CONFIGURATION VARIABLES
-# ============================================================================
 
 # Model configuration
 BASE_MODEL="unsloth/gemma-3-12b-it"
@@ -25,8 +19,6 @@ HF_REPO_BASE=""  # Base repo ID, e.g., "username/kie-gemma3-12b"
 
 # Inference parameters
 MAX_NEW_TOKENS=256
-TEMPERATURE=1.0  # Use 1.0 for greedy decoding
-MIN_P=0.1
 SAMPLE_INDICES="0,1,2,3,4,5,6,7,8,9"  # Comma-separated list of sample indices
 
 # Evaluation parameters
@@ -86,8 +78,7 @@ fi
 echo ""
 echo "Inference Parameters:"
 echo "  - Max New Tokens: $MAX_NEW_TOKENS"
-echo "  - Temperature: $TEMPERATURE (1.0 = greedy decoding)"
-echo "  - Min P: $MIN_P"
+echo "  - Decoding: Greedy (deterministic)"
 echo "  - Sample Indices: $SAMPLE_INDICES"
 echo ""
 echo "Evaluation Parameters:"
@@ -197,8 +188,6 @@ for i, (key, prompt) in enumerate(data):
         --prompt "$PROMPT_TEXT" \
         --sample-indices "$SAMPLE_INDICES" \
         --max-new-tokens $MAX_NEW_TOKENS \
-        --temperature $TEMPERATURE \
-        --min-p $MIN_P \
         --output-dir "$INFERENCE_OUTPUT_DIR"
 
     echo "✅ Inference complete!"

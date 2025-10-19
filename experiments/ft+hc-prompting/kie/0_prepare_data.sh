@@ -1,16 +1,10 @@
 #!/bin/bash
 # ============================================================================
-# Script 0: Data Preparation
-# ============================================================================
 # This script loads the KIE dataset and splits it into train/eval/test sets.
 # Run this script FIRST before running any other scripts.
 # ============================================================================
 
 set -e  # Stop on any error
-
-# ============================================================================
-# CONFIGURATION VARIABLES
-# ============================================================================
 
 DATASET_NAME="nanonets/key_information_extraction"
 OUTPUT_DIR="./kie_splits"
@@ -19,9 +13,7 @@ EVAL_RATIO=0.2
 TEST_RATIO=0.2
 SEED=42
 
-# ============================================================================
 # MAIN EXECUTION
-# ============================================================================
 
 echo "============================================================================"
 echo "🚀 KIE Data Preparation Script"

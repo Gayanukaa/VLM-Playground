@@ -1,17 +1,11 @@
 #!/bin/bash
 # ============================================================================
-# Script 1: Fine-tuning
-# ============================================================================
 # This script fine-tunes the Gemma-3-12B-IT model on KIE dataset.
 # It loops over all prompts in prompts.yml and creates a fine-tuned model
 # for each prompt. Optionally uploads models to HuggingFace.
 # ============================================================================
 
 set -e  # Stop on any error
-
-# ============================================================================
-# CONFIGURATION VARIABLES
-# ============================================================================
 
 # Model configuration
 BASE_MODEL="unsloth/gemma-3-12b-it"
@@ -34,7 +28,7 @@ LEARNING_RATE=2e-4
 BATCH_SIZE=4
 GRADIENT_ACCUMULATION_STEPS=1
 WARMUP_RATIO=0.1
-MAX_STEPS=100
+MAX_STEPS=45
 FP16=true
 OPTIMIZER="adamw_8bit"
 LR_SCHEDULER="cosine"
@@ -45,9 +39,7 @@ SEED=3407
 # Prompts file
 PROMPTS_FILE="prompts.yml"
 
-# ============================================================================
 # HELPER FUNCTIONS
-# ============================================================================
 
 # Function to extract prompts from YAML file
 extract_prompts() {
@@ -74,9 +66,7 @@ except Exception as e:
 EOF
 }
 
-# ============================================================================
 # MAIN EXECUTION
-# ============================================================================
 
 echo "============================================================================"
 echo "🚀 KIE Fine-tuning Script"

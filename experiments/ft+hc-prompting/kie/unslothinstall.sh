@@ -21,7 +21,6 @@ pip install XlsxWriter
 pip install openpyxl
 python -m ipykernel install --user --name=unsloth_env --display-name "Python (unsloth_env)"
 
-
 # Install Java 8
 #apt update
 apt install openjdk-8-jdk
@@ -71,8 +70,8 @@ export PATH=$PATH:$CORENLP_HOME
 echo "Java 8 and Stanford CoreNLP 4.5.10 setup complete at $CORENLP_HOME"
 
 # Install Python packages
-pip install wandb numpy pycocoevalcap sentence-transformers
+pip install numpy pycocoevalcap sentence-transformers
 pip install huggingface-hub
-pip install PyYAML python-Levenshtein xlsxwriter openpyxl
+pip install PyYAML python-Levenshtein
 
 wandb login

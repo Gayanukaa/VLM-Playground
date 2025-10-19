@@ -21,12 +21,11 @@ def run_inference(
     model,
     tokenizer,
     instruction: str,
-    max_new_tokens: int = 256,
-    temperature: float = 1.0,
-    min_p: float = 0.1
+    max_new_tokens: int = 256
 ):
     """
     Run inference on a single image with the given instruction.
+    Uses greedy decoding for deterministic results.
 
     Args:
         image: PIL Image or image data
@@ -34,8 +33,6 @@ def run_inference(
         tokenizer: Tokenizer
         instruction: Text prompt/instruction
         max_new_tokens: Maximum tokens to generate
-        temperature: Sampling temperature
-        min_p: Minimum probability for sampling
 
     Returns:
         Tuple of (generated_caption, inference_time_s, peak_vram_mb)
@@ -72,8 +69,9 @@ def run_inference(
                 "streamer": streamer,
                 "max_new_tokens": max_new_tokens,
                 "use_cache": True,
-                "temperature": temperature,
-                "min_p": min_p
+                "do_sample": False,  # Greedy decoding for deterministic results
+                "top_p": 1.0,  # No nucleus truncation (reproducibility guardrail)
+                "top_k": 0,  # No top-k filtering
             }
         )
         thread.start()
@@ -99,8 +97,6 @@ def run_inference(
     except Exception as e:
         print(f"❌ Error during inference: {e}")
         return "", 0.0, 0.0
-
-
 def load_model(
     model_path: str,
     load_from_hf: bool = False,
@@ -146,12 +142,10 @@ def run_inference_batch(
     test_dataset,
     prompt: str,
     sample_indices: List[int],
-    max_new_tokens: int = 256,
-    temperature: float = 1.0,
-    min_p: float = 0.1
+    max_new_tokens: int = 256
 ) -> tuple[Dict[int, str], Dict[int, str], Dict[int, float], Dict[int, float]]:
     """
-    Run inference on a batch of samples.
+    Run inference on a batch of samples using greedy decoding.
 
     Args:
         model: Vision-language model
@@ -160,8 +154,6 @@ def run_inference_batch(
         prompt: Instruction prompt
         sample_indices: List of sample indices to process
         max_new_tokens: Maximum tokens to generate
-        temperature: Sampling temperature
-        min_p: Minimum probability for sampling
 
     Returns:
         Tuple of (predictions, ground_truths, inference_times, vram_usage)
@@ -172,6 +164,7 @@ def run_inference_batch(
     vram_usage = {}
 
     print(f"🚀 Running inference on {len(sample_indices)} samples...")
+    print(f"   Using greedy decoding (deterministic)")
 
     for idx in sample_indices:
         print(f"\n📦 Processing sample {idx}...")
@@ -183,9 +176,7 @@ def run_inference_batch(
             model,
             tokenizer,
             prompt,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            min_p=min_p
+            max_new_tokens=max_new_tokens
         )
 
         predictions[idx] = pred
@@ -199,8 +190,6 @@ def run_inference_batch(
 
     print("\n✅ Inference batch complete!")
     return predictions, ground_truths, inference_times, vram_usage
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run inference on KIE model")
 
@@ -223,10 +212,6 @@ if __name__ == "__main__":
     # Inference parameters
     parser.add_argument("--max-new-tokens", type=int, default=256,
                         help="Maximum tokens to generate")
-    parser.add_argument("--temperature", type=float, default=1.0,
-                        help="Sampling temperature (use 1.0 for greedy)")
-    parser.add_argument("--min-p", type=float, default=0.1,
-                        help="Minimum probability for sampling")
 
     # Output
     parser.add_argument("--output-dir", type=str, default="./inference_results",
@@ -256,9 +241,7 @@ if __name__ == "__main__":
         test_dataset,
         args.prompt,
         sample_indices,
-        args.max_new_tokens,
-        args.temperature,
-        args.min_p
+        args.max_new_tokens
     )
 
     # Save results
