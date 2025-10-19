@@ -158,10 +158,23 @@ data = json.load(sys.stdin)
 for i, (key, prompt) in enumerate(data):
     # Base64 encode the prompt to safely pass through shell
     prompt_b64 = base64.b64encode(prompt.encode('utf-8')).decode('ascii')
-    print(f'{i}|||{key}|||{prompt_b64}')
-" | while IFS='|||' read -r INDEX KEY PROMPT_B64; do
+    # Use tab as delimiter (much less likely to appear in data)
+    print(f'{i}\t{key}\t{prompt_b64}')
+" | while IFS=$'\t' read -r INDEX KEY PROMPT_B64; do
+    # Skip if any field is empty
+    if [ -z "$INDEX" ] || [ -z "$KEY" ] || [ -z "$PROMPT_B64" ]; then
+        continue
+    fi
+
     # Decode the base64 prompt
-    PROMPT_TEXT=$(echo "$PROMPT_B64" | base64 -d)
+    PROMPT_TEXT=$(echo -n "$PROMPT_B64" | base64 -d 2>/dev/null)
+
+    # Check if decoding was successful
+    if [ $? -ne 0 ] || [ -z "$PROMPT_TEXT" ]; then
+        echo "⚠️  Warning: Failed to decode prompt for key: $KEY"
+        echo "   Skipping this prompt..."
+        continue
+    fi
 
     PROMPT_INDEX=$((INDEX + 1))
     PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)
