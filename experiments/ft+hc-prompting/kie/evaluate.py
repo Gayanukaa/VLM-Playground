@@ -166,8 +166,15 @@ def log_metrics_to_excel(
         # Get image from dataset
         sample_item = test_dataset[idx]
         pil_img = sample_item['image']
-        if not isinstance(pil_img, PILImage.Image):
+
+        # Handle different image types: bytes, numpy array, or PIL Image
+        if isinstance(pil_img, bytes):
+            # Decode bytes to PIL Image
+            pil_img = PILImage.open(BytesIO(pil_img))
+        elif not isinstance(pil_img, PILImage.Image):
+            # Convert numpy array to PIL Image
             pil_img = PILImage.fromarray(pil_img)
+
         pil_images.append(pil_img)
 
         # Format ground truth
@@ -300,7 +307,13 @@ def log_metrics_to_wandb(
             # Get image
             sample_item = test_dataset[idx]
             pil_img = sample_item['image']
-            if not isinstance(pil_img, PILImage.Image):
+
+            # Handle different image types: bytes, numpy array, or PIL Image
+            if isinstance(pil_img, bytes):
+                # Decode bytes to PIL Image
+                pil_img = PILImage.open(BytesIO(pil_img))
+            elif not isinstance(pil_img, PILImage.Image):
+                # Convert numpy array to PIL Image
                 pil_img = PILImage.fromarray(pil_img)
 
             wb_image = None
