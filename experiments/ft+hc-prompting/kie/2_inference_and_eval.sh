@@ -20,7 +20,7 @@ OUTPUT_DIR="./kie_results"
 
 # HuggingFace model repository (full path for direct loading)
 # Set the full repository path directly, e.g., "Gayanukaa/vlm-finetunes-baseline"
-HF_MODEL_REPO="Gayanukaa/vlm-finetunes-baseline"  # Leave empty to load from local MODEL_DIR_BASE
+HF_MODEL_REPO=""  # Leave empty to load from local MODEL_DIR_BASE
 
 # Inference parameters
 MAX_NEW_TOKENS=256
