@@ -20,7 +20,7 @@ OUTPUT_DIR="./kie_results"
 
 # HuggingFace model repository (full path for direct loading)
 # Set the full repository path directly, e.g., "Gayanukaa/vlm-finetunes-baseline"
-HF_MODEL_REPO=""  # Leave empty to load from local MODEL_DIR_BASE
+HF_MODEL_REPO="Gayanukaa/vlm-finetunes-baseline"  # Leave empty to load from local MODEL_DIR_BASE
 
 # Inference parameters
 MAX_NEW_TOKENS=256
@@ -188,17 +188,9 @@ for i, (key, prompt) in enumerate(data):
         MODEL_PATH="$HF_MODEL_REPO"
         LOAD_FROM_HF_FLAG="--load-from-hf"
     else
-        # Load from local directory
-        MODEL_PATH="${MODEL_DIR_BASE}/prompt_${PROMPT_NUM}_${KEY}"
-        LOAD_FROM_HF_FLAG=""
-
-        # Check if local model exists
-        if [ ! -d "$MODEL_PATH" ]; then
-            echo "⚠️  Warning: Model not found at $MODEL_PATH"
-            echo "Skipping prompt: $KEY"
-            echo ""
-            continue
-        fi
+        # Use the base model when HF_MODEL_REPO is empty
+        MODEL_PATH="$BASE_MODEL"
+        LOAD_FROM_HF_FLAG="--load-from-hf"
     fi
 
     INFERENCE_OUTPUT_DIR="${OUTPUT_DIR}/prompt_${PROMPT_NUM}_${KEY}"
