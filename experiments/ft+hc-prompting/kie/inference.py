@@ -180,7 +180,8 @@ def run_inference_batch(
         )
 
         predictions[idx] = pred
-        ground_truths[idx] = sample['caption']
+        # KIE dataset has 'ground_truth' field containing JSON annotations
+        ground_truths[idx] = sample.get('ground_truth', sample.get('annotation', ''))
         inference_times[idx] = inf_time
         vram_usage[idx] = vram
 

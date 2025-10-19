@@ -105,6 +105,13 @@ def finetune_model(
     print(f"✅ Evaluation dataset loaded: {len(eval_dataset)} samples")
 
     def convert_to_conversation(sample):
+        # KIE dataset has 'ground_truth' field containing JSON annotations
+        # Convert dict to JSON string if needed
+        ground_truth = sample.get("ground_truth", sample.get("annotation", ""))
+        if isinstance(ground_truth, dict):
+            import json
+            ground_truth = json.dumps(ground_truth)
+
         conversation = [
             {
                 "role": "user",
@@ -116,7 +123,7 @@ def finetune_model(
             {
                 "role": "assistant",
                 "content": [
-                    {"type": "text", "text": sample["caption"]}
+                    {"type": "text", "text": str(ground_truth)}
                 ]
             },
         ]
