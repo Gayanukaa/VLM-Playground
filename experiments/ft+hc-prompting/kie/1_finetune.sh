@@ -152,34 +152,42 @@ PROMPT_INDEX=0
 echo "$PROMPTS_JSON" | python3 -c "
 import sys
 import json
-import base64
+import tempfile
+import os
 
 data = json.load(sys.stdin)
 for i, (key, prompt) in enumerate(data):
-    # Base64 encode the prompt to safely pass through shell
-    prompt_b64 = base64.b64encode(prompt.encode('utf-8')).decode('ascii')
-    # Use tab as delimiter (much less likely to appear in data)
-    print(f'{i}\t{key}\t{prompt_b64}')
-" | while IFS=$'\t' read -r INDEX KEY PROMPT_B64; do
+    # Write prompt to a temporary file to avoid shell escaping issues
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+        f.write(prompt)
+        temp_file = f.name
+    # Output: index, key, and temp file path
+    print(f'{i}\t{key}\t{temp_file}')
+" | while IFS=$'\t' read -r INDEX KEY PROMPT_FILE; do
     # Skip if any field is empty
-    if [ -z "$INDEX" ] || [ -z "$KEY" ] || [ -z "$PROMPT_B64" ]; then
+    if [ -z "$INDEX" ] || [ -z "$KEY" ] || [ -z "$PROMPT_FILE" ]; then
         continue
     fi
 
-    # Decode the base64 prompt
-    PROMPT_TEXT=$(echo -n "$PROMPT_B64" | base64 -d 2>/dev/null)
+    # Read the prompt from the temporary file
+    if [ ! -f "$PROMPT_FILE" ]; then
+        echo "⚠️  Warning: Prompt file not found for key: $KEY"
+        echo "   Skipping this prompt..."
+        continue
+    fi
 
-    # Check if decoding was successful
-    if [ $? -ne 0 ] || [ -z "$PROMPT_TEXT" ]; then
-        echo "⚠️  Warning: Failed to decode prompt for key: $KEY"
+    PROMPT_TEXT=$(cat "$PROMPT_FILE")
+    rm -f "$PROMPT_FILE"  # Clean up temp file
+
+    # Check if prompt is empty
+    if [ -z "$PROMPT_TEXT" ]; then
+        echo "⚠️  Warning: Empty prompt for key: $KEY"
         echo "   Skipping this prompt..."
         continue
     fi
 
     PROMPT_INDEX=$((INDEX + 1))
-    PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)
-
-    echo ""
+    PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)    echo ""
     echo "------------------------------------------------------------------------"
     echo "🔄 Fine-tuning prompt $PROMPT_INDEX/$PROMPTS_COUNT: $KEY"
     echo "------------------------------------------------------------------------"
