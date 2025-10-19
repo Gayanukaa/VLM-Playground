@@ -30,6 +30,7 @@ SAMPLE_INDICES=""  # Empty = all samples, or specify comma-separated indices lik
 MODEL_NAME="gemma-3-12b-it"  # Model name for logging
 USE_WANDB=false
 WANDB_PROJECT="kie-eval"
+WANDB_RUN_NAME_PREFIX="base_model_inference"  # Prefix for WandB run names
 
 # Prompts file
 PROMPTS_FILE="prompts.yml"
@@ -94,6 +95,7 @@ echo "  - Model Name: $MODEL_NAME"
 echo "  - Use WandB: $USE_WANDB"
 if [ "$USE_WANDB" = true ]; then
     echo "  - WandB Project: $WANDB_PROJECT"
+    echo "  - WandB Run Name Prefix: $WANDB_RUN_NAME_PREFIX"
 fi
 echo ""
 echo "============================================================================"
@@ -237,15 +239,19 @@ for i, (key, prompt) in enumerate(data):
 
     echo "🔄 Running evaluation..."
 
+    # Generate unique WandB run name
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    WANDB_RUN_NAME="${WANDB_RUN_NAME_PREFIX}_${KEY}_${TIMESTAMP}"
+
     EVAL_CMD="python evaluate.py \
         --inference-results \"$INFERENCE_RESULTS\" \
         --test-dataset \"$TEST_DATASET\" \
         --output-excel \"$EVAL_EXCEL\" \
         --model-name \"$MODEL_NAME\""
 
-    # Add WandB flag if enabled
+    # Add WandB flags if enabled
     if [ "$USE_WANDB" = true ]; then
-        EVAL_CMD="$EVAL_CMD --use-wandb --wandb-project \"$WANDB_PROJECT\""
+        EVAL_CMD="$EVAL_CMD --use-wandb --wandb-project \"$WANDB_PROJECT\" --wandb-run-name \"$WANDB_RUN_NAME\""
     fi
 
     eval $EVAL_CMD
