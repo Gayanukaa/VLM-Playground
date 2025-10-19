@@ -184,13 +184,13 @@ for i, (key, prompt) in enumerate(data):
 
     # Determine model path
     if [ -n "$HF_MODEL_REPO" ]; then
-        # Use the directly specified HuggingFace repository
+        # Use the directly specified HuggingFace repository (as adapter)
         MODEL_PATH="$HF_MODEL_REPO"
         LOAD_FROM_HF_FLAG="--load-from-hf"
     else
-        # Use the base model when HF_MODEL_REPO is empty
+        # Use just the base model (no adapter)
         MODEL_PATH="$BASE_MODEL"
-        LOAD_FROM_HF_FLAG="--load-from-hf"
+        LOAD_FROM_HF_FLAG=""
     fi
 
     INFERENCE_OUTPUT_DIR="${OUTPUT_DIR}/prompt_${PROMPT_NUM}_${KEY}"
