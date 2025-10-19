@@ -219,8 +219,8 @@ if __name__ == "__main__":
                         help="Path to test dataset")
     parser.add_argument("--prompt", type=str, required=True,
                         help="Instruction prompt for inference")
-    parser.add_argument("--sample-indices", type=str, default="0,1,2,3,4,5,6,7,8,9",
-                        help="Comma-separated list of sample indices to process")
+    parser.add_argument("--sample-indices", type=str, default="",
+                        help="Comma-separated list of sample indices to process (empty = all samples)")
 
     # Inference parameters
     parser.add_argument("--max-new-tokens", type=int, default=256,
@@ -232,8 +232,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Parse sample indices
-    sample_indices = [int(x.strip()) for x in args.sample_indices.split(",")]
+    # Parse sample indices - if empty, use all samples from test dataset
+    if args.sample_indices.strip():
+        sample_indices = [int(x.strip()) for x in args.sample_indices.split(",")]
+    else:
+        # Load test dataset to get all indices
+        from datasets import load_from_disk
+        test_ds = load_from_disk(args.test_dataset)
+        sample_indices = list(range(len(test_ds)))
+        print(f"📊 No sample indices specified - using all {len(sample_indices)} samples from test dataset")
 
     # Load model
     model, tokenizer = load_model(

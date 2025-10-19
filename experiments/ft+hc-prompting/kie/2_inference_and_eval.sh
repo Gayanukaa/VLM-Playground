@@ -24,7 +24,7 @@ HF_MODEL_REPO=""  # Leave empty to load from local MODEL_DIR_BASE
 
 # Inference parameters
 MAX_NEW_TOKENS=256
-SAMPLE_INDICES="0,1,2,3,4,5,6,7,8,9"  # Comma-separated list of sample indices
+SAMPLE_INDICES=""  # Empty = all samples, or specify comma-separated indices like "0,1,2,3,4"
 
 # Evaluation parameters
 MODEL_NAME="gemma-3-12b-it"  # Model name for logging
@@ -83,7 +83,11 @@ echo ""
 echo "Inference Parameters:"
 echo "  - Max New Tokens: $MAX_NEW_TOKENS"
 echo "  - Decoding: Greedy (deterministic)"
-echo "  - Sample Indices: $SAMPLE_INDICES"
+if [ -n "$SAMPLE_INDICES" ]; then
+    echo "  - Sample Indices: $SAMPLE_INDICES"
+else
+    echo "  - Sample Indices: ALL (entire test dataset)"
+fi
 echo ""
 echo "Evaluation Parameters:"
 echo "  - Model Name: $MODEL_NAME"
