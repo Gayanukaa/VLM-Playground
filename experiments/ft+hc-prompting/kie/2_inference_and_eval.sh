@@ -2,7 +2,12 @@
 # ============================================================================
 # This script runs inference on fine-tuned models and evaluates them.
 # It loops over all prompts in prompts.yml and evaluates each corresponding
-# fine-tuned model. Can also load models from HuggingFace.
+# fine-tuned model.
+#
+# Usage:
+#   - For LOCAL models: Leave HF_MODEL_REPO empty, models loaded from MODEL_DIR_BASE
+#   - For HF models: Set HF_MODEL_REPO to the full repository path
+#                    Example: "Gayanukaa/vlm-finetunes-baseline"
 # ============================================================================
 
 set -e  # Stop on any error
@@ -13,9 +18,9 @@ TEST_DATASET="./kie_splits/test"
 MODEL_DIR_BASE="./kie_finetuned"
 OUTPUT_DIR="./kie_results"
 
-# Load from HuggingFace (set to true if models are on HF)
-LOAD_FROM_HF=false
-HF_REPO_BASE=""  # Base repo ID, e.g., "username/kie-gemma3-12b"
+# HuggingFace model repository (full path for direct loading)
+# Set the full repository path directly, e.g., "Gayanukaa/vlm-finetunes-baseline"
+HF_MODEL_REPO=""  # Leave empty to load from local MODEL_DIR_BASE
 
 # Inference parameters
 MAX_NEW_TOKENS=256
@@ -71,9 +76,8 @@ echo "  - Base Model: $BASE_MODEL"
 echo "  - Test Dataset: $TEST_DATASET"
 echo "  - Model Directory Base: $MODEL_DIR_BASE"
 echo "  - Output Directory: $OUTPUT_DIR"
-echo "  - Load from HuggingFace: $LOAD_FROM_HF"
-if [ "$LOAD_FROM_HF" = true ]; then
-    echo "  - HuggingFace Base Repo: $HF_REPO_BASE"
+if [ -n "$HF_MODEL_REPO" ]; then
+    echo "  - HuggingFace Model: $HF_MODEL_REPO"
 fi
 echo ""
 echo "Inference Parameters:"
@@ -131,11 +135,17 @@ PROMPT_INDEX=0
 echo "$PROMPTS_JSON" | python3 -c "
 import sys
 import json
+import base64
 
 data = json.load(sys.stdin)
 for i, (key, prompt) in enumerate(data):
-    print(f'{i}|||{key}|||{prompt}')
-" | while IFS='|||' read -r INDEX KEY PROMPT_TEXT; do
+    # Base64 encode the prompt to safely pass through shell
+    prompt_b64 = base64.b64encode(prompt.encode('utf-8')).decode('ascii')
+    print(f'{i}|||{key}|||{prompt_b64}')
+" | while IFS='|||' read -r INDEX KEY PROMPT_B64; do
+    # Decode the base64 prompt
+    PROMPT_TEXT=$(echo "$PROMPT_B64" | base64 -d)
+
     PROMPT_INDEX=$((INDEX + 1))
     PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)
 
@@ -146,20 +156,22 @@ for i, (key, prompt) in enumerate(data):
     echo ""
 
     # Determine model path
-    if [ "$LOAD_FROM_HF" = true ] && [ -n "$HF_REPO_BASE" ]; then
-        MODEL_PATH="${HF_REPO_BASE}-prompt${PROMPT_NUM}"
+    if [ -n "$HF_MODEL_REPO" ]; then
+        # Use the directly specified HuggingFace repository
+        MODEL_PATH="$HF_MODEL_REPO"
         LOAD_FROM_HF_FLAG="--load-from-hf"
     else
+        # Load from local directory
         MODEL_PATH="${MODEL_DIR_BASE}/prompt_${PROMPT_NUM}_${KEY}"
         LOAD_FROM_HF_FLAG=""
-    fi
 
-    # Check if model exists (only for local models)
-    if [ "$LOAD_FROM_HF" = false ] && [ ! -d "$MODEL_PATH" ]; then
-        echo "⚠️  Warning: Model not found at $MODEL_PATH"
-        echo "Skipping prompt: $KEY"
-        echo ""
-        continue
+        # Check if local model exists
+        if [ ! -d "$MODEL_PATH" ]; then
+            echo "⚠️  Warning: Model not found at $MODEL_PATH"
+            echo "Skipping prompt: $KEY"
+            echo ""
+            continue
+        fi
     fi
 
     INFERENCE_OUTPUT_DIR="${OUTPUT_DIR}/prompt_${PROMPT_NUM}_${KEY}"

@@ -16,7 +16,10 @@ SAVE_DIR_BASE="./kie_finetuned"
 # HuggingFace upload (set to true to enable)
 UPLOAD_TO_HF=false
 HF_TOKEN=""  # Add your HuggingFace token here
-HF_REPO_BASE=""  # Base repo ID, e.g., "username/kie-gemma3-12b"
+HF_REPO_BASE=""  # Base repo ID (e.g., "Gayanukaa/vlm-finetunes")
+                 # Models will be saved as: {HF_REPO_BASE}-{prompt_key}
+                 # Examples: Gayanukaa/vlm-finetunes-baseline
+                 #           Gayanukaa/vlm-finetunes-masked
 
 # LoRA configuration
 LORA_R=8
@@ -149,11 +152,17 @@ PROMPT_INDEX=0
 echo "$PROMPTS_JSON" | python3 -c "
 import sys
 import json
+import base64
 
 data = json.load(sys.stdin)
 for i, (key, prompt) in enumerate(data):
-    print(f'{i}|||{key}|||{prompt}')
-" | while IFS='|||' read -r INDEX KEY PROMPT_TEXT; do
+    # Base64 encode the prompt to safely pass through shell
+    prompt_b64 = base64.b64encode(prompt.encode('utf-8')).decode('ascii')
+    print(f'{i}|||{key}|||{prompt_b64}')
+" | while IFS='|||' read -r INDEX KEY PROMPT_B64; do
+    # Decode the base64 prompt
+    PROMPT_TEXT=$(echo "$PROMPT_B64" | base64 -d)
+
     PROMPT_INDEX=$((INDEX + 1))
     PROMPT_NUM=$(printf "%02d" $PROMPT_INDEX)
 
@@ -167,8 +176,10 @@ for i, (key, prompt) in enumerate(data):
     SAVE_DIR="${SAVE_DIR_BASE}/prompt_${PROMPT_NUM}_${KEY}"
 
     # Set HuggingFace repo ID for this prompt
+    # Convert key to lowercase and replace underscores/spaces with hyphens
     if [ "$UPLOAD_TO_HF" = true ] && [ -n "$HF_REPO_BASE" ]; then
-        HF_REPO_ID="${HF_REPO_BASE}-prompt${PROMPT_NUM}"
+        KEY_NORMALIZED=$(echo "$KEY" | tr '[:upper:]' '[:lower:]' | tr '_' '-' | tr ' ' '-')
+        HF_REPO_ID="${HF_REPO_BASE}-${KEY_NORMALIZED}"
     else
         HF_REPO_ID=""
     fi
