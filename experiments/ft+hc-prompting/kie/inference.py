@@ -14,6 +14,31 @@ from PIL import Image as PILImage
 from datasets import load_from_disk
 from unsloth import FastVisionModel
 from transformers import TextIteratorStreamer
+import re
+
+
+def clean_json_output(raw_output: str) -> str:
+    """
+    Clean the model output to extract only the JSON object.
+    Removes markdown code blocks, extra text, and formatting.
+    
+    Args:
+        raw_output: Raw output from the model
+        
+    Returns:
+        Clean JSON string
+    """
+    cleaned = re.sub(r'```json\s*', '', raw_output)
+    cleaned = re.sub(r'```\s*$', '', cleaned)
+    
+    start_idx = cleaned.find('{')
+    end_idx = cleaned.rfind('}')
+    
+    if start_idx != -1 and end_idx != -1 and start_idx <= end_idx:
+        cleaned = cleaned[start_idx:end_idx + 1]
+    
+    cleaned = cleaned.strip()
+    return cleaned
 
 
 def run_inference(
@@ -92,7 +117,9 @@ def run_inference(
         peak_vram_bytes = torch.cuda.max_memory_allocated(device="cuda")
         peak_vram_mb = peak_vram_bytes / (1024 ** 2)
 
-        return generated_caption.strip(), inference_time_s, peak_vram_mb
+        # Clean the generated output to extract only JSON
+        cleaned_caption = clean_json_output(generated_caption.strip())
+        return cleaned_caption, inference_time_s, peak_vram_mb
 
     except Exception as e:
         print(f"❌ Error during inference: {e}")
