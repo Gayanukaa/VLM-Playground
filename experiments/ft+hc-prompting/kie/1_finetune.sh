@@ -22,7 +22,7 @@ HF_REPO_BASE=""  # Base repo ID (e.g., "Gayanukaa/vlm-finetunes")
                  #           Gayanukaa/vlm-finetunes-masked
 
 # WandB logging (set to true to enable)
-USE_WANDB=true
+USE_WANDB=false
 WANDB_PROJECT="kie-finetuning"
 WANDB_RUN_NAME_PREFIX="kie_ft"  # Will be appended with prompt key and timestamp
 

@@ -93,6 +93,14 @@ def finetune_model(
         except ImportError:
             print("⚠️  WandB not installed. Install with: pip install wandb")
             report_to = "none"
+        except Exception as e:
+            print(f"⚠️  WandB initialization failed: {e}")
+            print("   Possible solutions:")
+            print("   1. Run: wandb login")
+            print("   2. Set: export WANDB_API_KEY=your_key")
+            print("   3. Set USE_WANDB=false in the script")
+            print("   Continuing without WandB logging...")
+            report_to = "none"
     else:
         report_to = "none"
 
@@ -180,6 +188,10 @@ def finetune_model(
 
     # Calculate warmup steps
     warmup_steps = int(max_steps * warmup_ratio)
+    
+    # Calculate eval and save steps to ensure compatibility with load_best_model_at_end
+    eval_steps = max(10, max_steps // 10)
+    save_steps = eval_steps  # Make save_steps equal to eval_steps to ensure they're compatible
 
     print(f"\n🔄 Setting up trainer...")
     print(f"   - Learning rate: {learning_rate}")
@@ -188,6 +200,8 @@ def finetune_model(
     print(f"   - Effective batch size: {per_device_train_batch_size * gradient_accumulation_steps}")
     print(f"   - Max steps: {max_steps}")
     print(f"   - Warmup steps: {warmup_steps}")
+    print(f"   - Eval steps: {eval_steps}")
+    print(f"   - Save steps: {save_steps}")
     print(f"   - Optimizer: {optim}")
     print(f"   - LR scheduler: {lr_scheduler_type}")
     print(f"   - Weight decay: {weight_decay}")
@@ -220,9 +234,9 @@ def finetune_model(
             dataset_num_proc=4,
             max_seq_length=max_seq_length,
             eval_strategy="steps",
-            eval_steps=max(10, max_steps // 10),
+            eval_steps=eval_steps,
             save_strategy="steps",
-            save_steps=max(10, max_steps // 5),
+            save_steps=save_steps,
             load_best_model_at_end=True,
         ),
     )
