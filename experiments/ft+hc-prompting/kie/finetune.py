@@ -23,6 +23,11 @@ def finetune_model(
     hf_token: str = None,
     repo_id: str = None,
     upload_to_hf: bool = False,
+    # WandB config
+    use_wandb: bool = False,
+    wandb_project: str = "kie-finetuning",
+    wandb_run_name: str = None,
+    wandb_tags: list = None,
     # LoRA config
     lora_r: int = 8,
     lora_alpha: int = 8,
@@ -71,6 +76,25 @@ def finetune_model(
     print("="*80)
     print(f"🔄 Loading vision-language model: {model_name}")
     print("="*80)
+
+    # Initialize WandB if requested
+    if use_wandb:
+        try:
+            import wandb
+            
+            # Initialize WandB - minimal config for loss tracking only
+            wandb.init(
+                project=wandb_project,
+                name=wandb_run_name,
+                tags=wandb_tags or []
+            )
+            print(f"✅ WandB initialized: {wandb_project}/{wandb_run_name}")
+            report_to = "wandb"
+        except ImportError:
+            print("⚠️  WandB not installed. Install with: pip install wandb")
+            report_to = "none"
+    else:
+        report_to = "none"
 
     model, tokenizer = FastVisionModel.from_pretrained(
         model_name,
@@ -189,7 +213,7 @@ def finetune_model(
             lr_scheduler_type=lr_scheduler_type,
             seed=seed,
             output_dir=save_dir,
-            report_to="none",
+            report_to=report_to,  # Use WandB or none
             remove_unused_columns=False,
             dataset_text_field="",
             dataset_kwargs={"skip_prepare_dataset": True},
@@ -295,6 +319,15 @@ def finetune_model(
     print("🎉 Fine-tuning process completed!")
     print("="*80)
 
+    # Finish WandB run
+    if use_wandb and "wandb" in report_to:
+        try:
+            import wandb
+            wandb.finish()
+            print("✅ WandB run completed and logged")
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to finish WandB run: {e}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fine-tune VLM for KIE")
@@ -318,6 +351,16 @@ if __name__ == "__main__":
                         help="HuggingFace access token")
     parser.add_argument("--repo-id", type=str, default=None,
                         help="HuggingFace repository ID")
+
+    # WandB logging
+    parser.add_argument("--use-wandb", action="store_true",
+                        help="Enable WandB logging for loss tracking")
+    parser.add_argument("--wandb-project", type=str, default="kie-finetuning",
+                        help="WandB project name")
+    parser.add_argument("--wandb-run-name", type=str, default=None,
+                        help="WandB run name")
+    parser.add_argument("--wandb-tags", type=str, nargs="*", default=[],
+                        help="WandB tags for the run")
 
     # LoRA config
     parser.add_argument("--lora-r", type=int, default=8,
@@ -362,6 +405,10 @@ if __name__ == "__main__":
         hf_token=args.hf_token,
         repo_id=args.repo_id,
         upload_to_hf=args.upload_to_hf,
+        use_wandb=args.use_wandb,
+        wandb_project=args.wandb_project,
+        wandb_run_name=args.wandb_run_name,
+        wandb_tags=args.wandb_tags,
         lora_r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=args.lora_dropout,

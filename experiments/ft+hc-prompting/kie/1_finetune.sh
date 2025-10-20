@@ -21,6 +21,11 @@ HF_REPO_BASE=""  # Base repo ID (e.g., "Gayanukaa/vlm-finetunes")
                  # Examples: Gayanukaa/vlm-finetunes-baseline
                  #           Gayanukaa/vlm-finetunes-masked
 
+# WandB logging (set to true to enable)
+USE_WANDB=true
+WANDB_PROJECT="kie-finetuning"
+WANDB_RUN_NAME_PREFIX="kie_ft"  # Will be appended with prompt key and timestamp
+
 # LoRA configuration
 LORA_R=8
 LORA_ALPHA=8
@@ -28,10 +33,10 @@ LORA_DROPOUT=0.01
 
 # Training hyperparameters
 LEARNING_RATE=2e-4
-BATCH_SIZE=4
+BATCH_SIZE=8
 GRADIENT_ACCUMULATION_STEPS=1
-WARMUP_RATIO=0.1
-MAX_STEPS=45
+WARMUP_RATIO=0.13
+MAX_STEPS=75
 FP16=true
 OPTIMIZER="adamw_8bit"
 LR_SCHEDULER="cosine"
@@ -101,6 +106,12 @@ echo ""
 echo "HuggingFace Upload: $UPLOAD_TO_HF"
 if [ "$UPLOAD_TO_HF" = true ]; then
     echo "  - Base Repository: $HF_REPO_BASE"
+fi
+echo ""
+echo "WandB Logging: $USE_WANDB"
+if [ "$USE_WANDB" = true ]; then
+    echo "  - Project: $WANDB_PROJECT"
+    echo "  - Run Name Prefix: $WANDB_RUN_NAME_PREFIX"
 fi
 echo ""
 echo "============================================================================"
@@ -231,6 +242,15 @@ for i, (key, prompt) in enumerate(data):
         HF_FLAGS=""
     fi
 
+    # Generate unique WandB run name
+    if [ "$USE_WANDB" = true ]; then
+        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+        WANDB_RUN_NAME="${WANDB_RUN_NAME_PREFIX}_${KEY}_${TIMESTAMP}"
+        WANDB_FLAGS="--use-wandb --wandb-project $WANDB_PROJECT --wandb-run-name $WANDB_RUN_NAME --wandb-tags finetune $KEY"
+    else
+        WANDB_FLAGS=""
+    fi
+
     # Run fine-tuning - read prompt from file to avoid quoting issues
     python finetune.py \
         --model-name "$BASE_MODEL" \
@@ -252,7 +272,8 @@ for i, (key, prompt) in enumerate(data):
         --max-seq-length $MAX_SEQ_LENGTH \
         --seed $SEED \
         $FP16_FLAG \
-        $HF_FLAGS
+        $HF_FLAGS \
+        $WANDB_FLAGS
 
     # Clean up temp file
     rm -f "$PROMPT_TEMP_FILE"
