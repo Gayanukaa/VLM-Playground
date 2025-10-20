@@ -255,7 +255,8 @@ def log_metrics_to_wandb(
     test_dataset,
     prompt: str,
     model_name: str,
-    wandb_project: str = "kie-eval"
+    wandb_project: str = "kie-experiments",
+    wandb_run_name: str = None
 ):
     """
     Log evaluation metrics to WandB.
@@ -271,6 +272,7 @@ def log_metrics_to_wandb(
         prompt: Prompt used
         model_name: Model name
         wandb_project: WandB project name
+        wandb_run_name: WandB run name (optional)
     """
     try:
         import wandb
@@ -279,7 +281,7 @@ def log_metrics_to_wandb(
         return
 
     try:
-        run = wandb.init(project=wandb_project, reinit=True)
+        run = wandb.init(project=wandb_project, name=wandb_run_name, reinit=True)
 
         # Log summary metrics
         avg_kie = sum(kie_scores) / len(kie_scores) if kie_scores else 0.0
@@ -359,6 +361,8 @@ if __name__ == "__main__":
                         help="Enable WandB logging")
     parser.add_argument("--wandb-project", type=str, default="kie-eval",
                         help="WandB project name")
+    parser.add_argument("--wandb-run-name", type=str, default=None,
+                        help="WandB run name (optional)")
 
     args = parser.parse_args()
 
@@ -424,7 +428,8 @@ if __name__ == "__main__":
             test_dataset,
             prompt,
             args.model_name,
-            args.wandb_project
+            args.wandb_project,
+            args.wandb_run_name
         )
 
     print("\n✅ Evaluation complete!")
