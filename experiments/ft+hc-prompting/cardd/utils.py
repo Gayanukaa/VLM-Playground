@@ -6,11 +6,13 @@ from pycocoevalcap.meteor.meteor import Meteor
 from pycocoevalcap.spice.spice   import Spice
 from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
 import pandas as pd
+from cider import Cider
 import time
 import torch
 import os
 
-def get_similarity_score(reference_captions, generated_caption):
+
+def get_similarity_score(reference_captions, generated_caption, scorer):
     try:
         total_score = 0.0
         for caption in reference_captions:
@@ -21,9 +23,22 @@ def get_similarity_score(reference_captions, generated_caption):
 
         avg_score = total_score / len(reference_captions) if reference_captions else 0.0
         return avg_score
-        
+
     except Exception as e:
         return 0.0
+
+def evaluate_cider(hypos, refs, PICKLE_PATH):
+    gts = {str(i): refs[i] for i in refs}
+
+    res = [{"image_id": str(i), "caption": hypos[i]} for i in hypos]
+
+    # Evaluate
+    cider = Cider()
+    score, individual_scores = cider.compute_score(gts, res, PICKLE_PATH)
+    print(f"🎯 CIDEr score: {score:.4f}")
+
+    return score, individual_scores
+
 
 def  calculate_spice(gts, res, stanford_corenlp_home=None):
     """
@@ -53,7 +68,7 @@ def  calculate_spice(gts, res, stanford_corenlp_home=None):
         print("in pycocoevalcap/spice/lib/ (you might need to create this path).")
         return None, None
     return score, spice_f_scores
- 
+
 def run_inference(image, model, tokenizer, instruction):
     """
     Runs inference on `image` + `instruction` through `model`/`tokenizer`,
@@ -92,8 +107,11 @@ def run_inference(image, model, tokenizer, instruction):
                 "streamer": streamer,
                 "max_new_tokens": 128,
                 "use_cache": True,
-                "temperature": 1.0,
-                "min_p": 0.1
+                "do_sample":False,  # Greedy decoding for deterministic results
+                "top_p":1.0,  # No nucleus truncation (reproducibility guardrail)
+                "top_k":0,
+                # "temperature": 1.0,
+                # "min_p": 0.1
             }
         )
         thread.start()
@@ -121,14 +139,14 @@ def run_inference(image, model, tokenizer, instruction):
         # On error, return empty caption and zeros
         return "", 0.0, 0.0
 
-def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/workspace/unsloth-finetune", LOAD_FROM_HF=False):
+def evaluate_batch(prompt, val_data, indexes, multiple_refs=False, MODEL_DIR="/workspace/unsloth-finetune", PICKLE_PATH = "/workspace/cardd-df.p", LOAD_FROM_HF=False):
     """
     prompts_list: list of instructions to evaluate
     val_data: DataFrame with ['image', 'caption'] columns,
     indexes: list of indexes to sample from val_data
     """
     print(f"🔄 Loading vision-language model from {MODEL_DIR}...")
-    BASE_MODEL = "unsloth/Qwen2-VL-7B-Instruct"  
+    BASE_MODEL = "unsloth/Qwen2-VL-7B-Instruct"
     # --- Load model ---
     if LOAD_FROM_HF:
         print(f"🔄 Loading base model '{BASE_MODEL}'...")
@@ -161,34 +179,68 @@ def evaluate_batch(prompt, val_data, indexes, multiple_refs=True, MODEL_DIR="/wo
     Spice_scores = {}
     Inference_time = {}
     Vram_usages = {}
-    
-    for index in indexes: 
+
+    for index in indexes:
         print(f"\n📦 Evaluating sample {index+1}/{len(indexes)} at index {index}...")
         sample = val_data[index]
         if multiple_refs:
-            reference_list = sample['caption'] 
+            reference_list = sample['caption']
             pred, inference_time, peak_vram = run_inference(sample['image'], model, tokenizer, prompt)
-            cos_score = get_similarity_score(reference_list, pred)
-
         else:
             reference_list = [sample['caption']]
             pred, inference_time, peak_vram = run_inference(sample['image'], model, tokenizer, prompt)
-            cos_score = get_similarity_score(reference_list, pred)
 
+
+        # Save results
         all_results[index] = pred
+        cos_score = get_similarity_score(reference_list, pred, scorer)
         cosine_scores[index] = cos_score
         Inference_time[index] = inference_time
         Vram_usages[index] = peak_vram
+
     gts = {}
     res = {}
-    for i in range(len(indexes)):
-        gts[str(i)] = [{"caption": ref} for ref in reference_list]
-        res[str(i)] = [{"caption": all_results[indexes[i]]}]
-    spice_score, spice_scores_per_instance = calculate_spice(gts, res)
-    for i, idx in enumerate(indexes):
-        Spice_scores[idx] = spice_scores_per_instance[i] if spice_scores_per_instance else 0.0
+    print("\n📌 Preparing ground truths and predictions for SPICE evaluation...")
 
-    
+    for j, idx in enumerate(indexes):
+        sample = val_data[idx]
+        refs = sample['caption'] if multiple_refs else [sample['caption']]
+        gts[str(j)] = [{"caption": ref} for ref in refs]
+        res[str(j)] = [{"caption": all_results[idx]}]
+
+        print(f"\n➡ Sample index {idx} mapped to SPICE index {j}:")
+        print(f"   Ground truth captions: {refs}")
+        print(f"   Predicted caption: {all_results[idx]}")
+
+    # Compute SPICE
+    spice_score, spice_scores_per_instance = calculate_spice(gts, res)
+    print(f"\n🎯 Overall SPICE score: {spice_score}")
+
+    for i, idx in enumerate(indexes):
+        instance_score = spice_scores_per_instance[i] if spice_scores_per_instance else 0.0
+        Spice_scores[idx] = instance_score
+        print(f"   Sample {idx} SPICE score: {instance_score}")
+
+    # Build dicts for CIDEr
+    print("\n📌 Preparing ground truths and hypotheses for CIDEr evaluation...")
+
+    hypos = {j: [all_results[idx]] for j, idx in enumerate(indexes)}
+    refs_dict = {j: sample['caption'] if multiple_refs else [sample['caption']]
+                 for j, idx in enumerate(indexes)
+                 for sample in [val_data[idx]]}
+
+    print("\n➡ Hypotheses dictionary:")
+    for k, v in hypos.items():
+        print(f"   {k}: {v}")
+
+    print("\n➡ References dictionary:")
+    for k, v in refs_dict.items():
+        print(f"   {k}: {v}")
+
+    # Call CIDEr evaluation
+    score, cider_scores = evaluate_cider(hypos, refs_dict, PICKLE_PATH)
+    print(f"\n🎯 Overall CIDEr score: {score}")
+
     print("✅ Batch evaluation complete!")
-    return all_results,cosine_scores, Spice_scores, Inference_time, Vram_usages
+    return all_results,cosine_scores, cider_scores,Spice_scores, Inference_time, Vram_usages
 
